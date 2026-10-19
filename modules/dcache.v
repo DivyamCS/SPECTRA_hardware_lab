@@ -138,12 +138,13 @@ module dcache #(
     reg                  req_we_reg;
     reg [1:0]            victim_way_reg;
 
-    wire [1:0] plru_access_way = hit ? hit_way : victim_way_reg;
+    wire [1:0]            plru_access_way = plru_refill_update ? victim_way_reg : hit_way;
+    wire [INDEX_BITS-1:0] plru_set_idx    = plru_refill_update ? req_addr_reg[9:4] : addr_index;
 
     plru u_plru (
         .clk         (clk),
         .rst         (rst),
-        .set_idx     (addr_index),
+        .set_idx     (plru_set_idx),
         .access_valid(plru_access_en),
         .access_way  (plru_access_way),
         .victim_way  (plru_victim_way)
