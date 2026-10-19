@@ -101,8 +101,16 @@ module dcache #(
     assign way_match[2] = way_valid[2] && (way_tags[2] == addr_tag);
     assign way_match[3] = way_valid[3] && (way_tags[3] == addr_tag);
 
-    wire hit  = req && (|way_match);
-    wire miss = req && (!hit);
+    // Note: hit only occurs while IDLE to prevent false hit pulses mid-refill
+    localparam STATE_IDLE       = 2'd0;
+    localparam STATE_WRITE_BACK = 2'd1;
+    localparam STATE_REFILL     = 2'd2;
+    localparam STATE_UPDATE     = 2'd3;
+
+    reg [1:0] state;
+
+    wire hit  = (state == STATE_IDLE) && req && cache_en && (|way_match);
+    wire miss = (state == STATE_IDLE) && req && cache_en && (!hit);
 
     // Encode matching way index (00, 01, 10, or 11)
     reg [1:0] hit_way;
@@ -163,6 +171,55 @@ module dcache #(
                 if (wstrb[3]) updated_hit_line[127:120] = wdata[31:24];
             end
         endcase
+    end
+
+    // -------------------------------------------------------------------------
+    // Cache Controller FSM (hit path only for now)
+    // -------------------------------------------------------------------------
+    integer set_i, way_i;
+
+    always @(posedge clk) begin
+        if (rst) begin
+            state              <= STATE_IDLE;
+            ready              <= 1'b0;
+            mem_req            <= 1'b0;
+            mem_we             <= 1'b0;
+            mem_addr           <= 32'b0;
+            mem_wdata          <= 128'b0;
+            hit_pulse          <= 1'b0;
+            miss_pulse         <= 1'b0;
+
+            for (way_i = 0; way_i < NUM_WAYS; way_i = way_i + 1) begin
+                for (set_i = 0; set_i < NUM_SETS; set_i = set_i + 1) begin
+                    valid[way_i][set_i] <= 1'b0;
+                    dirty[way_i][set_i] <= 1'b0;
+                end
+            end
+        end else begin
+            ready              <= 1'b0;
+            hit_pulse          <= 1'b0;
+            miss_pulse         <= 1'b0;
+
+            case (state)
+                STATE_IDLE: begin
+                    if (req && cache_en) begin
+                        if (hit) begin
+                            ready     <= 1'b1;
+                            hit_pulse <= 1'b1;
+                            if (we) begin
+                                data_array[hit_way][addr_index] <= updated_hit_line;
+                                dirty[hit_way][addr_index]      <= 1'b1;
+                            end
+                        end else begin
+                            // TODO: miss handling (write-back / refill)
+                            miss_pulse <= 1'b1;
+                        end
+                    end
+                end
+
+                default: state <= STATE_IDLE;
+            endcase
+        end
     end
 
 endmodule
