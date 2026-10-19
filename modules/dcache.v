@@ -125,6 +125,38 @@ module dcache #(
     end
 
     // -------------------------------------------------------------------------
+    // Tree-PLRU Replacement Instantiation
+    // -------------------------------------------------------------------------
+    wire [1:0] plru_victim_way;
+    reg        plru_refill_update;
+    wire       plru_access_en = (hit && ready) || plru_refill_update;
+
+    // Latched registers to protect against CPU address wobble during stalls
+    reg [ADDR_WIDTH-1:0] req_addr_reg;
+    reg [DATA_WIDTH-1:0] req_wdata_reg;
+    reg [3:0]            req_wstrb_reg;
+    reg                  req_we_reg;
+    reg [1:0]            victim_way_reg;
+
+    wire [1:0] plru_access_way = hit ? hit_way : victim_way_reg;
+
+    plru u_plru (
+        .clk         (clk),
+        .rst         (rst),
+        .set_idx     (addr_index),
+        .access_valid(plru_access_en),
+        .access_way  (plru_access_way),
+        .victim_way  (plru_victim_way)
+    );
+
+    // Victim line metadata for dirty eviction
+    wire         victim_dirty    = way_dirty[plru_victim_way];
+    wire         victim_valid    = way_valid[plru_victim_way];
+    wire [21:0]  victim_tag      = way_tags[plru_victim_way];
+    wire [127:0] victim_data     = way_data[plru_victim_way];
+    wire [31:0]  victim_mem_addr = {victim_tag, addr_index, 4'b0000};
+
+    // -------------------------------------------------------------------------
     // Hit Read Data Mux
     // -------------------------------------------------------------------------
     wire [127:0] selected_hit_line = way_data[hit_way];
@@ -188,6 +220,12 @@ module dcache #(
             mem_wdata          <= 128'b0;
             hit_pulse          <= 1'b0;
             miss_pulse         <= 1'b0;
+            plru_refill_update <= 1'b0;
+            req_addr_reg       <= 32'b0;
+            req_wdata_reg      <= 32'b0;
+            req_wstrb_reg      <= 4'b0;
+            req_we_reg         <= 1'b0;
+            victim_way_reg     <= 2'b0;
 
             for (way_i = 0; way_i < NUM_WAYS; way_i = way_i + 1) begin
                 for (set_i = 0; set_i < NUM_SETS; set_i = set_i + 1) begin
@@ -199,6 +237,7 @@ module dcache #(
             ready              <= 1'b0;
             hit_pulse          <= 1'b0;
             miss_pulse         <= 1'b0;
+            plru_refill_update <= 1'b0;
 
             case (state)
                 STATE_IDLE: begin
