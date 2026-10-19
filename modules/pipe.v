@@ -1,7 +1,7 @@
 //////////////// Including Stages ////////////////////////////
-`include "IF_ID.v"
-`include "execute.v"
-`include "wb.v"
+//`include "IF_ID.v"
+//`include "execute.v"
+//`include "wb.v"
 
  module pipe
 #(
