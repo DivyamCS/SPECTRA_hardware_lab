@@ -21,7 +21,7 @@ module dcache #(
     input  wire [ADDR_WIDTH-1:0]  addr,       // 32-bit physical address
     input  wire [DATA_WIDTH-1:0]  wdata,      // Store data from core
     input  wire [3:0]             wstrb,      // Byte enable mask
-    output reg  [DATA_WIDTH-1:0]  rdata,      // Load data to core
+    output wire [DATA_WIDTH-1:0]  rdata,      // Load data to core
     output reg                    ready,      // Single-cycle acknowledge pulse
     output wire                   busy,       // Locks Arbiter during misses/refills
 
@@ -117,8 +117,52 @@ module dcache #(
     end
 
     // -------------------------------------------------------------------------
+    // Hit Read Data Mux
+    // -------------------------------------------------------------------------
+    wire [127:0] selected_hit_line = way_data[hit_way];
+
+    assign rdata = (word_select == 2'b00) ? selected_hit_line[31:0]   :
+                   (word_select == 2'b01) ? selected_hit_line[63:32]  :
+                   (word_select == 2'b10) ? selected_hit_line[95:64]  :
+                                            selected_hit_line[127:96];
+
+    // -------------------------------------------------------------------------
     // Arbiter Lock: Bus held while FSM is servicing a miss or bypass access
     // -------------------------------------------------------------------------
     assign busy = (req && !ready);
+
+    // -------------------------------------------------------------------------
+    // Write Data Merging Logic
+    // -------------------------------------------------------------------------
+    reg [127:0] updated_hit_line;
+    always @(*) begin
+        updated_hit_line = selected_hit_line;
+        case (word_select)
+            2'b00: begin
+                if (wstrb[0]) updated_hit_line[7:0]   = wdata[7:0];
+                if (wstrb[1]) updated_hit_line[15:8]  = wdata[15:8];
+                if (wstrb[2]) updated_hit_line[23:16] = wdata[23:16];
+                if (wstrb[3]) updated_hit_line[31:24] = wdata[31:24];
+            end
+            2'b01: begin
+                if (wstrb[0]) updated_hit_line[39:32] = wdata[7:0];
+                if (wstrb[1]) updated_hit_line[47:40] = wdata[15:8];
+                if (wstrb[2]) updated_hit_line[55:48] = wdata[23:16];
+                if (wstrb[3]) updated_hit_line[63:56] = wdata[31:24];
+            end
+            2'b10: begin
+                if (wstrb[0]) updated_hit_line[71:64] = wdata[7:0];
+                if (wstrb[1]) updated_hit_line[79:72] = wdata[15:8];
+                if (wstrb[2]) updated_hit_line[87:80] = wdata[23:16];
+                if (wstrb[3]) updated_hit_line[95:88] = wdata[31:24];
+            end
+            2'b11: begin
+                if (wstrb[0]) updated_hit_line[103:96]  = wdata[7:0];
+                if (wstrb[1]) updated_hit_line[111:104] = wdata[15:8];
+                if (wstrb[2]) updated_hit_line[119:112] = wdata[23:16];
+                if (wstrb[3]) updated_hit_line[127:120] = wdata[31:24];
+            end
+        endcase
+    end
 
 endmodule
