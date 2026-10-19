@@ -157,19 +157,22 @@ module dcache #(
     wire [31:0]  victim_mem_addr = {victim_tag, addr_index, 4'b0000};
 
     // -------------------------------------------------------------------------
-    // Hit Read Data Mux
+    // Hit Read Data Mux & Refill Bypass Mux
+    // FIX 1: Provide direct data forward during STATE_UPDATE
     // -------------------------------------------------------------------------
     wire [127:0] selected_hit_line = way_data[hit_way];
+    wire [1:0]   active_word_sel   = (state == STATE_UPDATE) ? req_addr_reg[3:2] : word_select;
+    wire [127:0] active_line       = (state == STATE_UPDATE) ? mem_rdata : selected_hit_line;
 
-    assign rdata = (word_select == 2'b00) ? selected_hit_line[31:0]   :
-                   (word_select == 2'b01) ? selected_hit_line[63:32]  :
-                   (word_select == 2'b10) ? selected_hit_line[95:64]  :
-                                            selected_hit_line[127:96];
+    assign rdata = (active_word_sel == 2'b00) ? active_line[31:0]   :
+                   (active_word_sel == 2'b01) ? active_line[63:32]  :
+                   (active_word_sel == 2'b10) ? active_line[95:64]  :
+                                                active_line[127:96];
 
     // -------------------------------------------------------------------------
     // Arbiter Lock: Bus held while FSM is servicing a miss or bypass access
     // -------------------------------------------------------------------------
-    assign busy = (req && !ready);
+    assign busy = (state != STATE_IDLE) || (req && !ready);
 
     // -------------------------------------------------------------------------
     // Write Data Merging Logic
@@ -205,9 +208,41 @@ module dcache #(
         endcase
     end
 
+    reg [127:0] updated_refill_line;
+    always @(*) begin
+        updated_refill_line = mem_rdata;
+        case (req_addr_reg[3:2])
+            2'b00: begin
+                if (req_wstrb_reg[0]) updated_refill_line[7:0]   = req_wdata_reg[7:0];
+                if (req_wstrb_reg[1]) updated_refill_line[15:8]  = req_wdata_reg[15:8];
+                if (req_wstrb_reg[2]) updated_refill_line[23:16] = req_wdata_reg[23:16];
+                if (req_wstrb_reg[3]) updated_refill_line[31:24] = req_wdata_reg[31:24];
+            end
+            2'b01: begin
+                if (req_wstrb_reg[0]) updated_refill_line[39:32] = req_wdata_reg[7:0];
+                if (req_wstrb_reg[1]) updated_refill_line[47:40] = req_wdata_reg[15:8];
+                if (req_wstrb_reg[2]) updated_refill_line[55:48] = req_wdata_reg[23:16];
+                if (req_wstrb_reg[3]) updated_refill_line[63:56] = req_wdata_reg[31:24];
+            end
+            2'b10: begin
+                if (req_wstrb_reg[0]) updated_refill_line[71:64] = req_wdata_reg[7:0];
+                if (req_wstrb_reg[1]) updated_refill_line[79:72] = req_wdata_reg[15:8];
+                if (req_wstrb_reg[2]) updated_refill_line[87:80] = req_wdata_reg[23:16];
+                if (req_wstrb_reg[3]) updated_refill_line[95:88] = req_wdata_reg[31:24];
+            end
+            2'b11: begin
+                if (req_wstrb_reg[0]) updated_refill_line[103:96]  = req_wdata_reg[7:0];
+                if (req_wstrb_reg[1]) updated_refill_line[111:104] = req_wdata_reg[15:8];
+                if (req_wstrb_reg[2]) updated_refill_line[119:112] = req_wdata_reg[23:16];
+                if (req_wstrb_reg[3]) updated_refill_line[127:120] = req_wdata_reg[31:24];
+            end
+        endcase
+    end
+
     // -------------------------------------------------------------------------
-    // Cache Controller FSM (hit path only for now)
+    // Cache Controller FSM with 8-Cycle Wait Counter
     // -------------------------------------------------------------------------
+    reg [2:0] wait_cnt;
     integer set_i, way_i;
 
     always @(posedge clk) begin
@@ -221,6 +256,7 @@ module dcache #(
             hit_pulse          <= 1'b0;
             miss_pulse         <= 1'b0;
             plru_refill_update <= 1'b0;
+            wait_cnt           <= 3'd0;
             req_addr_reg       <= 32'b0;
             req_wdata_reg      <= 32'b0;
             req_wstrb_reg      <= 4'b0;
@@ -250,13 +286,69 @@ module dcache #(
                                 dirty[hit_way][addr_index]      <= 1'b1;
                             end
                         end else begin
-                            // TODO: miss handling (write-back / refill)
-                            miss_pulse <= 1'b1;
+                            // Miss detected: freeze request attributes
+                            miss_pulse     <= 1'b1;
+                            wait_cnt       <= 3'd0;
+                            req_addr_reg   <= addr;
+                            req_wdata_reg  <= wdata;
+                            req_wstrb_reg  <= wstrb;
+                            req_we_reg     <= we;
+                            victim_way_reg <= plru_victim_way;
+
+                            if (victim_valid && victim_dirty) begin
+                                mem_req   <= 1'b1;
+                                mem_we    <= 1'b1;
+                                mem_addr  <= victim_mem_addr;
+                                mem_wdata <= victim_data;
+                                state     <= STATE_WRITE_BACK;
+                            end else begin
+                                mem_req   <= 1'b1;
+                                mem_we    <= 1'b0;
+                                mem_addr  <= {addr[31:4], 4'b0000};
+                                state     <= STATE_REFILL;
+                            end
                         end
                     end
                 end
 
-                default: state <= STATE_IDLE;
+                STATE_WRITE_BACK: begin
+                    if (wait_cnt == 3'd7) begin
+                        wait_cnt  <= 3'd0;
+                        mem_req   <= 1'b1;
+                        mem_we    <= 1'b0;
+                        mem_addr  <= {req_addr_reg[31:4], 4'b0000};
+                        state     <= STATE_REFILL;
+                    end else begin
+                        wait_cnt <= wait_cnt + 3'd1;
+                    end
+                end
+
+                STATE_REFILL: begin
+                    if (wait_cnt == 3'd7) begin
+                        wait_cnt <= 3'd0;
+                        mem_req  <= 1'b0;
+                        state    <= STATE_UPDATE;
+                    end else begin
+                        wait_cnt <= wait_cnt + 3'd1;
+                    end
+                end
+
+                STATE_UPDATE: begin
+                    tag_array[victim_way_reg][req_addr_reg[9:4]] <= req_addr_reg[31:10];
+                    valid[victim_way_reg][req_addr_reg[9:4]]     <= 1'b1;
+                    plru_refill_update                           <= 1'b1;
+                    ready                                        <= 1'b1;
+
+                    if (req_we_reg) begin
+                        data_array[victim_way_reg][req_addr_reg[9:4]] <= updated_refill_line;
+                        dirty[victim_way_reg][req_addr_reg[9:4]]      <= 1'b1;
+                    end else begin
+                        data_array[victim_way_reg][req_addr_reg[9:4]] <= mem_rdata;
+                        dirty[victim_way_reg][req_addr_reg[9:4]]      <= 1'b0;
+                    end
+
+                    state <= STATE_IDLE;
+                end
             endcase
         end
     end
