@@ -1,5 +1,22 @@
 `timescale 1ns / 1ps
 
+// =============================================================================
+// 4-way set-associative, write-back / write-allocate data cache
+//   - 64 sets, 16-byte lines, tree-PLRU replacement
+//   - Variable-latency main memory through a mem_req / mem_ready handshake
+//   - cache_en = 0 -> uncached bypass (line read, and read-modify-write for stores)
+//
+// Memory-side protocol assumed:
+//   * mem_req is held high until the memory answers with a mem_ready pulse.
+//   * mem_ready is only meaningful while mem_req = 1. mem_rdata is sampled on
+//     the cycle mem_ready = 1 (it does not have to stay valid afterwards).
+//   * mem_req is dropped for at least one cycle between two transactions.
+//
+// Core-side protocol:
+//   * The core holds re/we/addr/wdata/wstrb until it sees ready = 1.
+//   * ready is a one-cycle registered pulse; rdata is valid in that cycle.
+//   * busy = 1 stalls the arbiter until the access completes.
+// =============================================================================
 module dcache #(
     parameter ADDR_WIDTH            = 32,   // total 32 bit address
     parameter DATA_WIDTH            = 32,
@@ -29,7 +46,7 @@ module dcache #(
     // 2. Main Memory (DMEM / mem_delay) Interface
     // =========================================================================
     output reg                    mem_req,    // Memory access request
-    output reg                    mem_we,     // 0 = Read refill burst, 1 = Dirty eviction write
+    output reg                    mem_we,     // 0 = Read refill, 1 = Dirty eviction / bypass store
     output reg  [ADDR_WIDTH-1:0]  mem_addr,   // 16-byte aligned base address
     output reg  [127:0]           mem_wdata,  // 128-bit dirty block written back
     input  wire [127:0]           mem_rdata,  // 128-bit new block read from memory
@@ -108,6 +125,8 @@ module dcache #(
     localparam [2:0] STATE_REFILL     = 3'd2;  // waiting for line read data
     localparam [2:0] STATE_UPDATE     = 3'd3;  // install line into the arrays
     localparam [2:0] STATE_GAP        = 3'd4;  // mem_req low for one cycle between transactions
+    localparam [2:0] STATE_BYP_RD     = 3'd5;  // bypass: line read
+    localparam [2:0] STATE_BYP_WR     = 3'd6;  // bypass store: line write-back
 
     reg [2:0] state;
 
@@ -116,9 +135,10 @@ module dcache #(
     // which the core is still presenting the same request on the bus. Looking
     // it up again would double-count hit/miss pulses, re-update the PLRU and
     // raise a spurious ready for whatever request comes next.
-    wire lookup = (state == STATE_IDLE) && req && !ready;
-    wire hit    = lookup && cache_en && (|way_match);
-    wire miss   = lookup && cache_en && !(|way_match);
+    wire lookup     = (state == STATE_IDLE) && req && !ready;
+    wire hit        = lookup && cache_en && (|way_match);
+    wire miss       = lookup && cache_en && !(|way_match);
+    wire bypass_req = lookup && !cache_en;
 
     // Encode matching way index (00, 01, 10, or 11)
     reg [1:0] hit_way;
@@ -144,12 +164,16 @@ module dcache #(
     reg [DATA_WIDTH-1:0] req_wdata_reg;
     reg [3:0]            req_wstrb_reg;
     reg                  req_we_reg;
+    reg                  req_byp_reg;      // 1 = this request is an uncached bypass access
     reg [1:0]            victim_way_reg;
     reg [127:0]          refill_data_reg;  // line captured when memory acknowledges a read
     reg                  rf_fwd_q;         // ready cycle after a miss: serve rdata from refill_data_reg
 
+    wire [INDEX_BITS-1:0] req_index = req_addr_reg[9:4];
+    wire [TAG_BITS-1:0]   req_tag   = req_addr_reg[31:10];
+
     wire [1:0]            plru_access_way = plru_refill_update ? victim_way_reg : hit_way;
-    wire [INDEX_BITS-1:0] plru_set_idx    = plru_refill_update ? req_addr_reg[9:4] : addr_index;
+    wire [INDEX_BITS-1:0] plru_set_idx    = plru_refill_update ? req_index      : addr_index;
 
     plru u_plru (
         .clk         (clk),
@@ -185,69 +209,34 @@ module dcache #(
     assign busy = (state != STATE_IDLE) || (req && !ready);
 
     // -------------------------------------------------------------------------
-    // Write Data Merging Logic
+    // Byte-enable merge of one 32-bit word into a 128-bit line
     // -------------------------------------------------------------------------
-    reg [127:0] updated_hit_line;
-    always @(*) begin
-        updated_hit_line = selected_hit_line;
-        case (word_select)
-            2'b00: begin
-                if (wstrb[0]) updated_hit_line[7:0]   = wdata[7:0];
-                if (wstrb[1]) updated_hit_line[15:8]  = wdata[15:8];
-                if (wstrb[2]) updated_hit_line[23:16] = wdata[23:16];
-                if (wstrb[3]) updated_hit_line[31:24] = wdata[31:24];
-            end
-            2'b01: begin
-                if (wstrb[0]) updated_hit_line[39:32] = wdata[7:0];
-                if (wstrb[1]) updated_hit_line[47:40] = wdata[15:8];
-                if (wstrb[2]) updated_hit_line[55:48] = wdata[23:16];
-                if (wstrb[3]) updated_hit_line[63:56] = wdata[31:24];
-            end
-            2'b10: begin
-                if (wstrb[0]) updated_hit_line[71:64] = wdata[7:0];
-                if (wstrb[1]) updated_hit_line[79:72] = wdata[15:8];
-                if (wstrb[2]) updated_hit_line[87:80] = wdata[23:16];
-                if (wstrb[3]) updated_hit_line[95:88] = wdata[31:24];
-            end
-            2'b11: begin
-                if (wstrb[0]) updated_hit_line[103:96]  = wdata[7:0];
-                if (wstrb[1]) updated_hit_line[111:104] = wdata[15:8];
-                if (wstrb[2]) updated_hit_line[119:112] = wdata[23:16];
-                if (wstrb[3]) updated_hit_line[127:120] = wdata[31:24];
-            end
-        endcase
-    end
+    function [127:0] merge_line;
+        input [127:0] line;
+        input [1:0]   wsel;
+        input [31:0]  data;
+        input [3:0]   strb;
+        reg   [127:0] r;
+        reg   [31:0]  wd;
+        begin
+            r  = line;
+            wd = line[{wsel, 5'b00000} +: 32];
+            if (strb[0]) wd[7:0]   = data[7:0];
+            if (strb[1]) wd[15:8]  = data[15:8];
+            if (strb[2]) wd[23:16] = data[23:16];
+            if (strb[3]) wd[31:24] = data[31:24];
+            r[{wsel, 5'b00000} +: 32] = wd;
+            merge_line = r;
+        end
+    endfunction
 
-    reg [127:0] updated_refill_line;
-    always @(*) begin
-        updated_refill_line = refill_data_reg;
-        case (req_addr_reg[3:2])
-            2'b00: begin
-                if (req_wstrb_reg[0]) updated_refill_line[7:0]   = req_wdata_reg[7:0];
-                if (req_wstrb_reg[1]) updated_refill_line[15:8]  = req_wdata_reg[15:8];
-                if (req_wstrb_reg[2]) updated_refill_line[23:16] = req_wdata_reg[23:16];
-                if (req_wstrb_reg[3]) updated_refill_line[31:24] = req_wdata_reg[31:24];
-            end
-            2'b01: begin
-                if (req_wstrb_reg[0]) updated_refill_line[39:32] = req_wdata_reg[7:0];
-                if (req_wstrb_reg[1]) updated_refill_line[47:40] = req_wdata_reg[15:8];
-                if (req_wstrb_reg[2]) updated_refill_line[55:48] = req_wdata_reg[23:16];
-                if (req_wstrb_reg[3]) updated_refill_line[63:56] = req_wdata_reg[31:24];
-            end
-            2'b10: begin
-                if (req_wstrb_reg[0]) updated_refill_line[71:64] = req_wdata_reg[7:0];
-                if (req_wstrb_reg[1]) updated_refill_line[79:72] = req_wdata_reg[15:8];
-                if (req_wstrb_reg[2]) updated_refill_line[87:80] = req_wdata_reg[23:16];
-                if (req_wstrb_reg[3]) updated_refill_line[95:88] = req_wdata_reg[31:24];
-            end
-            2'b11: begin
-                if (req_wstrb_reg[0]) updated_refill_line[103:96]  = req_wdata_reg[7:0];
-                if (req_wstrb_reg[1]) updated_refill_line[111:104] = req_wdata_reg[15:8];
-                if (req_wstrb_reg[2]) updated_refill_line[119:112] = req_wdata_reg[23:16];
-                if (req_wstrb_reg[3]) updated_refill_line[127:120] = req_wdata_reg[31:24];
-            end
-        endcase
-    end
+
+    // Store hit: merge into the live cache line using live core signals
+    wire [127:0] updated_hit_line  = merge_line(selected_hit_line, word_select, wdata, wstrb);
+
+    // Store miss / bypass store: merge into the captured memory line using latched signals
+    wire [127:0] updated_refill_line = merge_line(refill_data_reg, req_addr_reg[3:2],
+                                                  req_wdata_reg, req_wstrb_reg);
 
     // -------------------------------------------------------------------------
     // Cache Controller FSM (mem_ready handshake)
@@ -269,6 +258,7 @@ module dcache #(
             req_wdata_reg      <= 32'b0;
             req_wstrb_reg      <= 4'b0;
             req_we_reg         <= 1'b0;
+            req_byp_reg        <= 1'b0;
             victim_way_reg     <= 2'b0;
             refill_data_reg    <= 128'b0;
             rf_fwd_q           <= 1'b0;
@@ -296,12 +286,13 @@ module dcache #(
                             dirty[hit_way][addr_index]      <= 1'b1;
                         end
                     end else if (miss) begin
-                        // Miss detected: freeze request attributes
+                        // Freeze request attributes
                         miss_pulse     <= 1'b1;
                         req_addr_reg   <= addr;
                         req_wdata_reg  <= wdata;
                         req_wstrb_reg  <= wstrb;
                         req_we_reg     <= we;
+                        req_byp_reg    <= 1'b0;
                         victim_way_reg <= plru_victim_way;
 
                         if (victim_valid && victim_dirty) begin
@@ -316,6 +307,18 @@ module dcache #(
                             mem_addr  <= {addr[31:4], 4'b0000};
                             state     <= STATE_REFILL;
                         end
+                    end else if (bypass_req) begin
+                        // Uncached access: always fetch the line first
+                        // (needed for loads; for stores it is the read half of a RMW)
+                        req_addr_reg  <= addr;
+                        req_wdata_reg <= wdata;
+                        req_wstrb_reg <= wstrb;
+                        req_we_reg    <= we;
+                        req_byp_reg   <= 1'b1;
+                        mem_req       <= 1'b1;
+                        mem_we        <= 1'b0;
+                        mem_addr      <= {addr[31:4], 4'b0000};
+                        state         <= STATE_BYP_RD;
                     end
                 end
 
@@ -329,9 +332,17 @@ module dcache #(
 
                 STATE_GAP: begin
                     mem_req  <= 1'b1;
-                    mem_we   <= 1'b0;
                     mem_addr <= {req_addr_reg[31:4], 4'b0000};
-                    state    <= STATE_REFILL;
+                    if (req_byp_reg) begin
+                        // Bypass store: write back the merged line
+                        mem_we    <= 1'b1;
+                        mem_wdata <= updated_refill_line;
+                        state     <= STATE_BYP_WR;
+                    end else begin
+                        // Cache miss: refill the requested line
+                        mem_we    <= 1'b0;
+                        state     <= STATE_REFILL;
+                    end
                 end
 
                 STATE_REFILL: begin
@@ -343,22 +354,46 @@ module dcache #(
                 end
 
                 STATE_UPDATE: begin
-                    tag_array[victim_way_reg][req_addr_reg[9:4]] <= req_addr_reg[31:10];
-                    valid[victim_way_reg][req_addr_reg[9:4]]     <= 1'b1;
+                    tag_array[victim_way_reg][req_index] <= req_tag;
+                    valid[victim_way_reg][req_index]     <= 1'b1;
                     plru_refill_update                           <= 1'b1;
                     ready                                        <= 1'b1;
                     rf_fwd_q                                     <= 1'b1;
 
                     if (req_we_reg) begin
-                        data_array[victim_way_reg][req_addr_reg[9:4]] <= updated_refill_line;
-                        dirty[victim_way_reg][req_addr_reg[9:4]]      <= 1'b1;
+                        data_array[victim_way_reg][req_index] <= updated_refill_line;
+                        dirty[victim_way_reg][req_index]      <= 1'b1;
                     end else begin
-                        data_array[victim_way_reg][req_addr_reg[9:4]] <= refill_data_reg;
-                        dirty[victim_way_reg][req_addr_reg[9:4]]      <= 1'b0;
+                        data_array[victim_way_reg][req_index] <= refill_data_reg;
+                        dirty[victim_way_reg][req_index]      <= 1'b0;
                     end
 
                     state <= STATE_IDLE;
                 end
+                STATE_BYP_RD: begin
+                    if (mem_ready) begin
+                        refill_data_reg <= mem_rdata;
+                        mem_req         <= 1'b0;
+                        if (req_we_reg) begin
+                            state    <= STATE_GAP;
+                        end else begin
+                            ready    <= 1'b1;
+                            rf_fwd_q <= 1'b1;
+                            state    <= STATE_IDLE;
+                        end
+                    end
+                end
+
+                STATE_BYP_WR: begin
+                    if (mem_ready) begin
+                        mem_req <= 1'b0;
+                        mem_we  <= 1'b0;
+                        ready   <= 1'b1;
+                        state   <= STATE_IDLE;
+                    end
+                end
+
+                default: state <= STATE_IDLE;
             endcase
         end
     end
