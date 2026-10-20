@@ -17,7 +17,7 @@
 //   * ready is a one-cycle registered pulse; rdata is valid in that cycle.
 //   * busy = 1 stalls the arbiter until the access completes.
 // =============================================================================
-module dcache #(
+module dcached #(
     parameter ADDR_WIDTH            = 32,   // total 32 bit address
     parameter DATA_WIDTH            = 32,
     parameter LINE_SIZE_BYTES       = 16,
@@ -81,8 +81,6 @@ module dcache #(
     // Tag Arrays: 4 Ways x 64 Sets (22-bit Tag per entry)
     // Data Arrays: 4 Ways x 64 Sets (128-bit / 16-byte Line per entry)
     // -------------------------------------------------------------------------
-    reg [TAG_BITS-1:0] tag_array  [0:NUM_WAYS-1][0:NUM_SETS-1];            
-    reg [127:0]        data_array [0:NUM_WAYS-1][0:NUM_SETS-1];            
 
     // -------------------------------------------------------------------------
     // Read Stage: Retrieve Tags and Data for the Indexed Set
@@ -100,11 +98,33 @@ module dcache #(
     // and dirty bits of Way 0 through Way 3 concurrently into our tag comparators 
     // for single-cycle hit/miss evaluation.
     // -------------------------------------------------------------------------
+    // -------------------------------------------------------------------------
+    // Shared write port into the per-way RAMs (assigned further down, once hit,
+    // hit_way and the merged lines exist). A store hit and a line install can
+    // never happen in the same cycle, so one write port per way is enough.
+    // -------------------------------------------------------------------------
+    wire                  wr_data_en;
+    wire                  wr_tag_en;
+    wire [1:0]            wr_way;
+    wire [INDEX_BITS-1:0] wr_idx;
+    wire [127:0]          wr_data;
+    wire [TAG_BITS-1:0]   wr_tag;
+
     genvar w;
     generate
         for (w = 0; w < NUM_WAYS; w = w + 1) begin : gen_way_reads
-            assign way_tags[w]  = tag_array[w][addr_index];
-            assign way_data[w]  = data_array[w][addr_index];
+            // One 2-D array per way, one write port, async read -> Vivado infers
+            // distributed (LUT) RAM. No reset on purpose: valid[] gates every read.
+            (* ram_style = "distributed" *) reg [TAG_BITS-1:0] tag_mem  [0:NUM_SETS-1];
+            (* ram_style = "distributed" *) reg [127:0]        data_mem [0:NUM_SETS-1];
+
+            always @(posedge clk) begin
+                if (wr_data_en && (wr_way == w)) data_mem[wr_idx] <= wr_data;
+                if (wr_tag_en  && (wr_way == w)) tag_mem[wr_idx]  <= wr_tag;
+            end
+
+            assign way_tags[w]  = tag_mem[addr_index];
+            assign way_data[w]  = data_mem[addr_index];
             assign way_valid[w] = valid[w][addr_index];
             assign way_dirty[w] = dirty[w][addr_index];
         end
@@ -238,12 +258,22 @@ module dcache #(
     wire [127:0] updated_refill_line = merge_line(refill_data_reg, req_addr_reg[3:2],
                                                   req_wdata_reg, req_wstrb_reg);
 
+    // Write-port drive: line install (STATE_UPDATE) or store hit
+    wire upd_now = (state == STATE_UPDATE);
+    assign wr_data_en = upd_now | (hit & we);
+    assign wr_tag_en  = upd_now;
+    assign wr_way     = upd_now ? victim_way_reg : hit_way;
+    assign wr_idx     = upd_now ? req_index      : addr_index;
+    assign wr_tag     = req_tag;
+    assign wr_data    = upd_now ? (req_we_reg ? updated_refill_line : refill_data_reg)
+                                : updated_hit_line;
+
     // -------------------------------------------------------------------------
     // Cache Controller FSM (mem_ready handshake)
     // -------------------------------------------------------------------------
     integer set_i, way_i;
 
-    always @(posedge clk) begin
+    always @(posedge clk or posedge rst) begin
         if (rst) begin
             state              <= STATE_IDLE;
             ready              <= 1'b0;
@@ -282,7 +312,6 @@ module dcache #(
                         ready     <= 1'b1;
                         hit_pulse <= 1'b1;
                         if (we) begin
-                            data_array[hit_way][addr_index] <= updated_hit_line;
                             dirty[hit_way][addr_index]      <= 1'b1;
                         end
                     end else if (miss) begin
@@ -354,17 +383,14 @@ module dcache #(
                 end
 
                 STATE_UPDATE: begin
-                    tag_array[victim_way_reg][req_index] <= req_tag;
                     valid[victim_way_reg][req_index]     <= 1'b1;
                     plru_refill_update                           <= 1'b1;
                     ready                                        <= 1'b1;
                     rf_fwd_q                                     <= 1'b1;
 
                     if (req_we_reg) begin
-                        data_array[victim_way_reg][req_index] <= updated_refill_line;
                         dirty[victim_way_reg][req_index]      <= 1'b1;
                     end else begin
-                        data_array[victim_way_reg][req_index] <= refill_data_reg;
                         dirty[victim_way_reg][req_index]      <= 1'b0;
                     end
 
