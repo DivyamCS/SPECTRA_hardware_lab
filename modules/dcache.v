@@ -33,6 +33,7 @@ module dcache #(
     output reg  [ADDR_WIDTH-1:0]  mem_addr,   // 16-byte aligned base address
     output reg  [127:0]           mem_wdata,  // 128-bit dirty block written back
     input  wire [127:0]           mem_rdata,  // 128-bit new block read from memory
+    input  wire                   mem_ready,  // Memory completed the current request
 
     // =========================================================================
     // 3. Configuration & Performance Telemetry
@@ -109,8 +110,14 @@ module dcache #(
 
     reg [1:0] state;
 
-    wire hit  = (state == STATE_IDLE) && req && cache_en && (|way_match);
-    wire miss = (state == STATE_IDLE) && req && cache_en && (!hit);
+    // A new request is only looked up in IDLE and never in the cycle where
+    // ready = 1. That cycle is the completion cycle of the previous access, in
+    // which the core is still presenting the same request on the bus. Looking
+    // it up again would double-count hit/miss pulses, re-update the PLRU and
+    // raise a spurious ready for whatever request comes next.
+    wire lookup = (state == STATE_IDLE) && req && !ready;
+    wire hit    = lookup && cache_en && (|way_match);
+    wire miss   = lookup && cache_en && !(|way_match);
 
     // Encode matching way index (00, 01, 10, or 11)
     reg [1:0] hit_way;
@@ -129,7 +136,7 @@ module dcache #(
     // -------------------------------------------------------------------------
     wire [1:0] plru_victim_way;
     reg        plru_refill_update;
-    wire       plru_access_en = (hit && ready) || plru_refill_update;
+    wire       plru_access_en = hit || plru_refill_update;
 
     // Latched registers to protect against CPU address wobble during stalls
     reg [ADDR_WIDTH-1:0] req_addr_reg;
@@ -241,9 +248,8 @@ module dcache #(
     end
 
     // -------------------------------------------------------------------------
-    // Cache Controller FSM with 8-Cycle Wait Counter
+    // Cache Controller FSM (mem_ready handshake)
     // -------------------------------------------------------------------------
-    reg [2:0] wait_cnt;
     integer set_i, way_i;
 
     always @(posedge clk) begin
@@ -257,7 +263,6 @@ module dcache #(
             hit_pulse          <= 1'b0;
             miss_pulse         <= 1'b0;
             plru_refill_update <= 1'b0;
-            wait_cnt           <= 3'd0;
             req_addr_reg       <= 32'b0;
             req_wdata_reg      <= 32'b0;
             req_wstrb_reg      <= 4'b0;
@@ -278,59 +283,50 @@ module dcache #(
 
             case (state)
                 STATE_IDLE: begin
-                    if (req && cache_en) begin
-                        if (hit) begin
-                            ready     <= 1'b1;
-                            hit_pulse <= 1'b1;
-                            if (we) begin
-                                data_array[hit_way][addr_index] <= updated_hit_line;
-                                dirty[hit_way][addr_index]      <= 1'b1;
-                            end
-                        end else begin
-                            // Miss detected: freeze request attributes
-                            miss_pulse     <= 1'b1;
-                            wait_cnt       <= 3'd0;
-                            req_addr_reg   <= addr;
-                            req_wdata_reg  <= wdata;
-                            req_wstrb_reg  <= wstrb;
-                            req_we_reg     <= we;
-                            victim_way_reg <= plru_victim_way;
+                    if (hit) begin
+                        ready     <= 1'b1;
+                        hit_pulse <= 1'b1;
+                        if (we) begin
+                            data_array[hit_way][addr_index] <= updated_hit_line;
+                            dirty[hit_way][addr_index]      <= 1'b1;
+                        end
+                    end else if (miss) begin
+                        // Miss detected: freeze request attributes
+                        miss_pulse     <= 1'b1;
+                        req_addr_reg   <= addr;
+                        req_wdata_reg  <= wdata;
+                        req_wstrb_reg  <= wstrb;
+                        req_we_reg     <= we;
+                        victim_way_reg <= plru_victim_way;
 
-                            if (victim_valid && victim_dirty) begin
-                                mem_req   <= 1'b1;
-                                mem_we    <= 1'b1;
-                                mem_addr  <= victim_mem_addr;
-                                mem_wdata <= victim_data;
-                                state     <= STATE_WRITE_BACK;
-                            end else begin
-                                mem_req   <= 1'b1;
-                                mem_we    <= 1'b0;
-                                mem_addr  <= {addr[31:4], 4'b0000};
-                                state     <= STATE_REFILL;
-                            end
+                        if (victim_valid && victim_dirty) begin
+                            mem_req   <= 1'b1;
+                            mem_we    <= 1'b1;
+                            mem_addr  <= victim_mem_addr;
+                            mem_wdata <= victim_data;
+                            state     <= STATE_WRITE_BACK;
+                        end else begin
+                            mem_req   <= 1'b1;
+                            mem_we    <= 1'b0;
+                            mem_addr  <= {addr[31:4], 4'b0000};
+                            state     <= STATE_REFILL;
                         end
                     end
                 end
 
                 STATE_WRITE_BACK: begin
-                    if (wait_cnt == 3'd7) begin
-                        wait_cnt  <= 3'd0;
-                        mem_req   <= 1'b1;
-                        mem_we    <= 1'b0;
-                        mem_addr  <= {req_addr_reg[31:4], 4'b0000};
-                        state     <= STATE_REFILL;
-                    end else begin
-                        wait_cnt <= wait_cnt + 3'd1;
+                    if (mem_ready) begin
+                        mem_req  <= 1'b1;
+                        mem_we   <= 1'b0;
+                        mem_addr <= {req_addr_reg[31:4], 4'b0000};
+                        state    <= STATE_REFILL;
                     end
                 end
 
                 STATE_REFILL: begin
-                    if (wait_cnt == 3'd7) begin
-                        wait_cnt <= 3'd0;
-                        mem_req  <= 1'b0;
-                        state    <= STATE_UPDATE;
-                    end else begin
-                        wait_cnt <= wait_cnt + 3'd1;
+                    if (mem_ready) begin
+                        mem_req <= 1'b0;
+                        state   <= STATE_UPDATE;
                     end
                 end
 
