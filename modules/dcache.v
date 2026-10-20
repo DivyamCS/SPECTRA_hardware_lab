@@ -103,12 +103,13 @@ module dcache #(
     assign way_match[3] = way_valid[3] && (way_tags[3] == addr_tag);
 
     // Note: hit only occurs while IDLE to prevent false hit pulses mid-refill
-    localparam STATE_IDLE       = 2'd0;
-    localparam STATE_WRITE_BACK = 2'd1;
-    localparam STATE_REFILL     = 2'd2;
-    localparam STATE_UPDATE     = 2'd3;
+    localparam [2:0] STATE_IDLE       = 3'd0;
+    localparam [2:0] STATE_WRITE_BACK = 3'd1;  // waiting for dirty-victim write ack
+    localparam [2:0] STATE_REFILL     = 3'd2;  // waiting for line read data
+    localparam [2:0] STATE_UPDATE     = 3'd3;  // install line into the arrays
+    localparam [2:0] STATE_GAP        = 3'd4;  // mem_req low for one cycle between transactions
 
-    reg [1:0] state;
+    reg [2:0] state;
 
     // A new request is only looked up in IDLE and never in the cycle where
     // ready = 1. That cycle is the completion cycle of the previous access, in
@@ -144,6 +145,8 @@ module dcache #(
     reg [3:0]            req_wstrb_reg;
     reg                  req_we_reg;
     reg [1:0]            victim_way_reg;
+    reg [127:0]          refill_data_reg;  // line captured when memory acknowledges a read
+    reg                  rf_fwd_q;         // ready cycle after a miss: serve rdata from refill_data_reg
 
     wire [1:0]            plru_access_way = plru_refill_update ? victim_way_reg : hit_way;
     wire [INDEX_BITS-1:0] plru_set_idx    = plru_refill_update ? req_addr_reg[9:4] : addr_index;
@@ -165,17 +168,16 @@ module dcache #(
     wire [31:0]  victim_mem_addr = {victim_tag, addr_index, 4'b0000};
 
     // -------------------------------------------------------------------------
-    // Hit Read Data Mux & Refill Bypass Mux
-    // FIX 1: Provide direct data forward during STATE_UPDATE
+    // Load data mux
+    // FIX: in STATE_UPDATE, and in the ready cycle after a miss, data comes from the
+    // captured line (refill_data_reg), not from the arrays and not from mem_rdata.
     // -------------------------------------------------------------------------
     wire [127:0] selected_hit_line = way_data[hit_way];
-    wire [1:0]   active_word_sel   = (state == STATE_UPDATE) ? req_addr_reg[3:2] : word_select;
-    wire [127:0] active_line       = (state == STATE_UPDATE) ? mem_rdata : selected_hit_line;
+    wire         use_rf            = (state == STATE_UPDATE) || rf_fwd_q;
+    wire [127:0] active_line       = use_rf ? refill_data_reg : selected_hit_line;
+    wire [1:0]   active_word_sel   = use_rf ? req_addr_reg[3:2] : word_select;
 
-    assign rdata = (active_word_sel == 2'b00) ? active_line[31:0]   :
-                   (active_word_sel == 2'b01) ? active_line[63:32]  :
-                   (active_word_sel == 2'b10) ? active_line[95:64]  :
-                                                active_line[127:96];
+    assign rdata = active_line[{active_word_sel, 5'b00000} +: 32];
 
     // -------------------------------------------------------------------------
     // Arbiter Lock: Bus held while FSM is servicing a miss or bypass access
@@ -218,7 +220,7 @@ module dcache #(
 
     reg [127:0] updated_refill_line;
     always @(*) begin
-        updated_refill_line = mem_rdata;
+        updated_refill_line = refill_data_reg;
         case (req_addr_reg[3:2])
             2'b00: begin
                 if (req_wstrb_reg[0]) updated_refill_line[7:0]   = req_wdata_reg[7:0];
@@ -268,6 +270,8 @@ module dcache #(
             req_wstrb_reg      <= 4'b0;
             req_we_reg         <= 1'b0;
             victim_way_reg     <= 2'b0;
+            refill_data_reg    <= 128'b0;
+            rf_fwd_q           <= 1'b0;
 
             for (way_i = 0; way_i < NUM_WAYS; way_i = way_i + 1) begin
                 for (set_i = 0; set_i < NUM_SETS; set_i = set_i + 1) begin
@@ -280,6 +284,7 @@ module dcache #(
             hit_pulse          <= 1'b0;
             miss_pulse         <= 1'b0;
             plru_refill_update <= 1'b0;
+            rf_fwd_q           <= 1'b0;
 
             case (state)
                 STATE_IDLE: begin
@@ -316,17 +321,24 @@ module dcache #(
 
                 STATE_WRITE_BACK: begin
                     if (mem_ready) begin
-                        mem_req  <= 1'b1;
-                        mem_we   <= 1'b0;
-                        mem_addr <= {req_addr_reg[31:4], 4'b0000};
-                        state    <= STATE_REFILL;
+                        mem_req <= 1'b0;
+                        mem_we  <= 1'b0;
+                        state   <= STATE_GAP;
                     end
+                end
+
+                STATE_GAP: begin
+                    mem_req  <= 1'b1;
+                    mem_we   <= 1'b0;
+                    mem_addr <= {req_addr_reg[31:4], 4'b0000};
+                    state    <= STATE_REFILL;
                 end
 
                 STATE_REFILL: begin
                     if (mem_ready) begin
-                        mem_req <= 1'b0;
-                        state   <= STATE_UPDATE;
+                        refill_data_reg <= mem_rdata;
+                        mem_req         <= 1'b0;
+                        state           <= STATE_UPDATE;
                     end
                 end
 
@@ -335,12 +347,13 @@ module dcache #(
                     valid[victim_way_reg][req_addr_reg[9:4]]     <= 1'b1;
                     plru_refill_update                           <= 1'b1;
                     ready                                        <= 1'b1;
+                    rf_fwd_q                                     <= 1'b1;
 
                     if (req_we_reg) begin
                         data_array[victim_way_reg][req_addr_reg[9:4]] <= updated_refill_line;
                         dirty[victim_way_reg][req_addr_reg[9:4]]      <= 1'b1;
                     end else begin
-                        data_array[victim_way_reg][req_addr_reg[9:4]] <= mem_rdata;
+                        data_array[victim_way_reg][req_addr_reg[9:4]] <= refill_data_reg;
                         dirty[victim_way_reg][req_addr_reg[9:4]]      <= 1'b0;
                     end
 
