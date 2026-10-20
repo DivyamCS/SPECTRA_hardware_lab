@@ -17,7 +17,7 @@
 //   * ready is a one-cycle registered pulse; rdata is valid in that cycle.
 //   * busy = 1 stalls the arbiter until the access completes.
 // =============================================================================
-module dcached #(
+module dcache #(
     parameter ADDR_WIDTH            = 32,   // total 32 bit address
     parameter DATA_WIDTH            = 32,
     parameter LINE_SIZE_BYTES       = 16,
