@@ -13,6 +13,8 @@
 	input               	stall,
 	output          	exception,  
 	output [31:0] pc_out,
+	output [31: 0] dbg_x31,      // debug: architectural x31 (pass/fail marker)
+	output        dbg_mbusy,    // debug: MUL/DIV in progress
 
 	// interface of instruction Memory (IMEM and DMEM)
 	input               	inst_mem_is_valid,
@@ -217,7 +219,7 @@ assign reg_rdata2 =
 ////////////////////////////////////////////////////////////
 
 integer i;//TODO
-always @(posedge clk or posedge reset) begin
+always @(posedge clk) begin
 	if (reset) begin
     	for (i = 1; i < 32; i = i + 1)
         	regs[i] <= 32'd0;
@@ -233,7 +235,7 @@ end
 // Stall register
 ////////////////////////////////////////////////////////////
 
-always @(posedge clk or posedge reset) begin
+always @(posedge clk) begin
 	if (reset)
     	stall_read <= 1'b0;
 	else
@@ -338,7 +340,7 @@ execute execute (
 ////////////////////////////////////////////////////////////
 
 
-always @(posedge clk or posedge reset) begin
+always @(posedge clk) begin
 	if (reset)
     	fetch_pc <= RESET;
 	else if (!hold)
@@ -408,5 +410,7 @@ wb wb_stage (
 );
 
 assign pc_out = fetch_pc;
+assign dbg_x31  = regs[31];
+assign dbg_mbusy = m_stall_comb;
 
 endmodule

@@ -22,7 +22,7 @@ wire exception;
 reg [25:0] clk_cnt;   	// enough for 50 million
 reg    	slow_clk;
 
-always @(posedge clk or posedge reset) begin
+always @(posedge clk) begin
 	if (reset) begin
     	clk_cnt  <= 26'd0;
     	slow_clk <= 1'b0;

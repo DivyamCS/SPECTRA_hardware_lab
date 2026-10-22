@@ -13,7 +13,7 @@ module div (
 );
 
     `include "opcode.vh"
-
+    
     // FSM States
     localparam IDLE    = 2'b00;
     localparam COMPUTE = 2'b01;
