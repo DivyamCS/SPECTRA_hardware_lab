@@ -38,51 +38,31 @@ module mul (
     reg signed [65:0] prod_reg2;
     reg [2:0]         funct3_reg2;
 
-    // State / Handshake Shift Register (3-cycle counter)
-    reg [2:0] state_pipe;
+    // State / Handshake Shift Register 
+    reg [1:0] state_pipe;          // [0] = cycle 1 (multiplying), [1] = cycle 2 (done)
 
-    always @(posedge clk or posedge rst) begin
-        if (rst) begin
-            state_pipe  <= 3'b000;
-            a_reg1      <= 33'sh0;
-            b_reg1      <= 33'sh0;
-            funct3_reg1 <= 3'b000;
-            prod_reg2   <= 66'sh0;
-            funct3_reg2 <= 3'b000;
-        end else begin
-            // 3-bit one-hot tracker for cycles
-            if (start && state_pipe == 3'b000) begin
-                state_pipe <= 3'b001; // Cycle 1: Started
-            end else if (state_pipe[0]) begin
-                state_pipe <= 3'b010; // Cycle 2: Multiplying
-            end else if (state_pipe[1]) begin
-                state_pipe <= 3'b100; // Cycle 3: Done
-            end else begin
-                state_pipe <= 3'b000; // Idle
-            end
+    wire accept = start && (state_pipe == 2'b00);
 
-            // --- Pipeline Stage 1: Input Registering ---
-            if (start && state_pipe == 3'b000) begin
-                a_reg1      <= ext_a;
-                b_reg1      <= ext_b;
-                funct3_reg1 <= funct3;
-            end
+    always @(posedge clk) begin
+        if (rst) state_pipe <= 2'b00;
+        else     state_pipe <= {state_pipe[0], accept};
+    end
 
-            // --- Pipeline Stage 2: Hardware DSP Multiply ---
-            // (Vivado DSP48 slices infer a pipeline stage here cleanly)
-            if (state_pipe[0]) begin
-                prod_reg2   <= a_reg1 * b_reg1;
-                funct3_reg2 <= funct3_reg1;
-            end
+    always @(posedge clk) begin
+        if (accept) begin
+            a_reg1      <= ext_a;
+            b_reg1      <= ext_b;
+            funct3_reg1 <= funct3;
+        end
+        if (state_pipe[0]) begin
+            prod_reg2   <= a_reg1 * b_reg1;
+            funct3_reg2 <= funct3_reg1;
         end
     end
 
-    // Multiplier is busy while active in cycles 1 and 2
     assign busy = state_pipe[0] | state_pipe[1];
-
-    // Done asserts during cycle 3 when prod_reg2 holds the complete product
-    assign done = state_pipe[2];
-
+    assign done = state_pipe[1];
+    
     // -------------------------------------------------------------
     // Pipeline Stage 3: Output Selection
     // -------------------------------------------------------------

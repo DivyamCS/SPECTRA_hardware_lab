@@ -62,7 +62,7 @@ module execute
 );
 
 //////////////// Including OPCODES ////////////////////////////
-//`include "opcode.vh"
+`include "opcode.vh"
 
 ////////////////////////////////////////////////////////////// LOCAL INTERNAL SIGNALS/////////////////////////////////
 
@@ -79,9 +79,9 @@ wire [32:0] ex_result_subu;
 // - Otherwise, the second operand must come from the second value read from the register file
 
 assign alu_operand1 = reg_rdata1;
-+// FIX: arithmetic shift must be computed on a signed net. Inside a ?: with an unsigned
-+// branch, $signed(..) >>> gets coerced to unsigned and degenerates into a logical shift.
-+wire signed [31:0] sra_res = $signed(alu_operand1) >>> alu_operand2[4:0];
+// FIX: arithmetic shift must be computed on a signed net. Inside a ?: with an unsigned
+// branch, $signed(..) >>> gets coerced to unsigned and degenerates into a logical shift.
+wire signed [31:0] sra_res = $signed(alu_operand1) >>> alu_operand2[4:0];
 assign alu_operand2 = immediate_sel ? execute_imm : reg_rdata2;
 
 ////////////////////////////////////////////////////////////// Subtractions////////////////////////////////////////////////////////////
@@ -208,7 +208,7 @@ wire        div_busy;
 reg mul_running;
 reg div_running;
 
-always @(posedge clk or posedge reset) begin
+always @(posedge clk) begin
     if (reset) begin
         mul_running <= 1'b0;
         div_running <= 1'b0;
@@ -374,7 +374,7 @@ module ex_mem_wb_reg (
 // - When a stall is asserted, prevent unintended updates
 // - All outputs must hold their previous values unless explicitly updated
 
-always @(posedge clk or posedge reset_n) begin
+always @(posedge clk) begin
 	if (reset_n) begin
     	ex_mem_result     	<= 32'h0;
     	ex_mem_mem_write  	<= 1'b0;

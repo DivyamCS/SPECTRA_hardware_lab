@@ -41,7 +41,7 @@ module wb
 );
 
 // import "opcode.vh" for OPCODES
-//`include "opcode.vh"
+`include "opcode.vh"
 
 
 ////////////////////////////////////////////////////////////
@@ -66,7 +66,7 @@ assign wb_stall_o = wb_stall_first_o || wb_stall_second_o;
 // Drive instruction memory address using the current fetch PC
 // Instruction fetch must be disabled when a read stall is asserted
 
-always @(posedge clk or posedge reset) begin
+always @(posedge clk) begin
     if (reset)
         inst_fetch_pc_o <= RESET; // reset to instruction fetch program counter
     else if (!stall_read_i && !m_stall_i)
@@ -82,7 +82,7 @@ end
 // - Second cycle: extend stall by one more cycle
 // - Stall must not advance when a pending load has not completed
 
-always @(posedge clk or posedge reset) begin
+always @(posedge clk) begin
     if (reset) begin
         wb_stall_first_o  <= 1'b0;
         wb_stall_second_o <= 1'b0;
@@ -103,7 +103,7 @@ end
 // - Generate write data with proper byte replication
 // - Generate byte-enable signals based on address alignment
 
-always @(posedge clk or posedge reset) begin
+always @(posedge clk) begin
     if (reset) begin
         wb_write_address_o <= 32'h0;
         wb_write_byte_o    <= 4'h0;

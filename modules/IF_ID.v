@@ -49,7 +49,7 @@ module IF_ID
 );
 
 //////////////// Including OPCODES ////////////////////////////
-//`include "opcode.vh"
+`include "opcode.vh"
 //////////////////////////////
 //////////////////////////////// LOCAL INTERNAL SIGNALS////////////////////////////////////////////////////////////
 
@@ -73,7 +73,7 @@ assign instruction_o = stall_read_i ? NOP : instruction_i;
 // - illegal instruction is detected
 // - instruction fetch is misaligned (inst_mem_offset != 2'b00)
 
-always @(posedge clk or posedge reset) begin
+always @(posedge clk) begin
     if (reset)
         exception <= 1'b0;
     else if (illegal_inst || inst_mem_offset != 2'b00)
@@ -263,7 +263,7 @@ module id_ex_reg (
     output reg        illegal_inst_o
 );
 
-always @(posedge clk or posedge reset_n) begin
+always @(posedge clk) begin
     if (reset_n) begin
         execute_immediate_o <= 32'h0;
         immediate_sel_o     <= 1'b0;
