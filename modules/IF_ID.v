@@ -43,12 +43,13 @@ module IF_ID
     output [4:0]  src2_select_w,
     output [4:0]  dest_reg_sel_w,
     output [2:0]  alu_operation_w,
+    output        m_ext_w, //added
     output        illegal_inst_w,
     output [31:0] instruction_o
 );
 
 //////////////// Including OPCODES ////////////////////////////
-`include "opcode.vh"
+//`include "opcode.vh"
 //////////////////////////////
 //////////////////////////////// LOCAL INTERNAL SIGNALS////////////////////////////////////////////////////////////
 
@@ -181,6 +182,7 @@ id_ex_reg u_id_ex (
 	.branch_i   	(instruction_i[`OPCODE] == BRANCH),
 	.mem_write_i	(instruction_i[`OPCODE] == STORE),
 	.mem_to_reg_i   (instruction_i[`OPCODE] == LOAD),
+    .m_ext_i        (instruction_i[`OPCODE] == ARITHR && instruction_i[25] == 1'b1), //<----added
 	.arithsubtype_i (
     	instruction_i[`SUBTYPE] &&
     	!(instruction_i[`OPCODE] == ARITHI &&
@@ -203,6 +205,7 @@ id_ex_reg u_id_ex (
 	.branch_o        	(branch_w),
 	.mem_write_o     	(mem_write_w),
 	.mem_to_reg_o    	(mem_to_reg_w),
+    .m_ext_o             (m_ext_w),             // <-- added 
 	.arithsubtype_o  	(arithsubtype_w),
 	.pc_o            	(pc_w),
 	.src1_sel_o      	(src1_select_w),
@@ -231,6 +234,7 @@ module id_ex_reg (
     input         branch_i,
     input         mem_write_i,
     input         mem_to_reg_i,
+    input          m_ext_i,             // <-- added
     input         arithsubtype_i,
     input  [31:0] pc_i,
     input  [4:0]  src1_sel_i,
@@ -249,6 +253,7 @@ module id_ex_reg (
     output reg        branch_o,
     output reg        mem_write_o,
     output reg        mem_to_reg_o,
+    output reg        m_ext_o,          // <-- added
     output reg        arithsubtype_o,
     output reg [31:0] pc_o,
     output reg [4:0]  src1_sel_o,
@@ -269,6 +274,7 @@ always @(posedge clk or posedge reset_n) begin
         branch_o            <= 1'b0;
         mem_write_o         <= 1'b0;
         mem_to_reg_o        <= 1'b0;
+        m_ext_o             <= 1'b0;    // <-- ADD
         arithsubtype_o      <= 1'b0;
         pc_o                <= 32'h0;
         src1_sel_o          <= 5'h0;
@@ -287,6 +293,7 @@ always @(posedge clk or posedge reset_n) begin
         branch_o            <= branch_i;
         mem_write_o         <= mem_write_i;
         mem_to_reg_o        <= mem_to_reg_i;
+        m_ext_o             <= m_ext_i; // <-- ADD
         arithsubtype_o      <= arithsubtype_i;
         pc_o                <= pc_i;
         src1_sel_o          <= src1_sel_i;
