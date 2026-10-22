@@ -1,26 +1,13 @@
 module instr_mem (
-	input  wire    	clk,
-	input  wire [31:0] pc, 	// byte address
-	output reg  [31:0] instr
+    input  wire        clk,
+    input  wire        en,          // 1 = fetch, 0 = hold the output (pipeline frozen)
+    input  wire [31:0] pc,
+    output reg  [31:0] instr
 );
-
-	// 1024 words = 4 KB
-	// Declare instruction memory array (word-addressable, 4 KB total)
-	(* ram_style = "block" *)
-	reg [31:0] imem [0:1023];
-
-	// FPGA ROM initialization
-	// Initialize instruction memory from hex file (simulation / FPGA)
-	initial begin
-    	$readmemh("imem.hex", imem);
-	end
-
-	// Synchronous instruction fetch
-	// Use word-aligned PC (pc[11:2]) to index memory
-	always @(posedge clk) begin
-    	instr <= imem[pc[11:2]];	// word address
-	end
-
+    (* ram_style = "block" *) reg [31:0] imem [0:1023];
+    initial instr = 32'h00000013;   // NOP, so the first fetch after reset is never X
+    initial $readmemh("imem.hex", imem);
+    always @(posedge clk) if (en) instr <= imem[pc[11:2]];
 endmodule
 
 
