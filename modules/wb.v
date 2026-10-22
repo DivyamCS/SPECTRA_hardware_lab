@@ -10,6 +10,7 @@ module wb
     input reset,
 
     input        stall_read_i,
+    input        m_stall_i,      // MUL/DIV in EX, not finished
     input [31:0] fetch_pc_i,
 
     input        wb_branch_i,
@@ -40,14 +41,16 @@ module wb
 );
 
 // import "opcode.vh" for OPCODES
-`include "opcode.vh"
+//`include "opcode.vh"
 
 
 ////////////////////////////////////////////////////////////
 // assigning these variables to read from the instruction memory
 ////////////////////////////////////////////////////////////
 
-assign inst_mem_address_o  = fetch_pc_i;
+// While a MUL/DIV occupies EX, the instruction after it is sitting on the (synchronous)
+// IMEM output. Re-fetch ITS address so it is still there when the M-op finishes.
+assign inst_mem_address_o  = m_stall_i ? inst_fetch_pc_o : fetch_pc_i;
 assign inst_mem_is_ready_o = !stall_read_i;
 
 ////////////////////////////////////////////////////////////
@@ -66,7 +69,7 @@ assign wb_stall_o = wb_stall_first_o || wb_stall_second_o;
 always @(posedge clk or posedge reset) begin
     if (reset)
         inst_fetch_pc_o <= RESET; // reset to instruction fetch program counter
-    else if (!stall_read_i)
+    else if (!stall_read_i && !m_stall_i)
         inst_fetch_pc_o <= fetch_pc_i; // fetch the next instruction
 end
 

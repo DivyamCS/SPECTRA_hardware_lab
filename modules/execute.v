@@ -25,6 +25,7 @@ module execute
 	input     	arithsubtype,
 	input     	mem_to_reg,
 	input     	stall_read,
+	input       m_ext, // <-- ADD
 
 	input  [4:0]  dest_reg_sel,
 	input  [2:0]  alu_op,
@@ -43,6 +44,11 @@ module execute
 	output reg [31:0] next_pc,
 	output reg    	branch_taken,
 
+	output      mul_busy_o,         // <-- ADD 
+    output      mul_done_o,         // <-- ADD 
+    output      div_busy_o,         // <-- ADD 
+    output      div_done_o,         // <-- ADD 
+
 	// -----------------------------  // EX → WB	// -----------------------------
 	output [31:0] wb_result,
 	output    	wb_mem_write,
@@ -56,7 +62,7 @@ module execute
 );
 
 //////////////// Including OPCODES ////////////////////////////
-`include "opcode.vh"
+//`include "opcode.vh"
 
 ////////////////////////////////////////////////////////////// LOCAL INTERNAL SIGNALS/////////////////////////////////
 
@@ -73,6 +79,9 @@ wire [32:0] ex_result_subu;
 // - Otherwise, the second operand must come from the second value read from the register file
 
 assign alu_operand1 = reg_rdata1;
++// FIX: arithmetic shift must be computed on a signed net. Inside a ?: with an unsigned
++// branch, $signed(..) >>> gets coerced to unsigned and degenerates into a logical shift.
++wire signed [31:0] sra_res = $signed(alu_operand1) >>> alu_operand2[4:0];
 assign alu_operand2 = immediate_sel ? execute_imm : reg_rdata2;
 
 ////////////////////////////////////////////////////////////// Subtractions////////////////////////////////////////////////////////////
@@ -179,6 +188,74 @@ always @(*) begin
 end
 
 ////////////////////////////////////////////////////////////// ALU result logic////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////// RV32M Hardware Integration ///////////////////////////////////
+
+////////////////////////////////////////////////////////////// RV32M Hardware Integration ///////////////////////////////////
+
+wire is_mul_inst = m_ext && !branch_stall && (alu_op[2] == 1'b0);  // ignore wrong-path M-ops in branch shadow // funct3: MUL, MULH, MULHSU, MULHU
+wire is_div_inst = m_ext && !branch_stall && (alu_op[2] == 1'b1); // funct3: DIV, DIVU, REM,  REMU
+
+wire [31:0] mul_result;
+wire        mul_done;
+wire        mul_busy;
+
+wire [31:0] div_result;
+wire        div_done;
+wire        div_busy;
+
+// Robust start generator:
+// Fires 'start' for exactly ONE cycle upon entering EX, then stays low until done
+reg mul_running;
+reg div_running;
+
+always @(posedge clk or posedge reset) begin
+    if (reset) begin
+        mul_running <= 1'b0;
+        div_running <= 1'b0;
+    end else begin
+        if (is_mul_inst && !mul_running && !mul_done)
+            mul_running <= 1'b1;
+        else if (mul_done)
+            mul_running <= 1'b0;
+
+        if (is_div_inst && !div_running && !div_done)
+            div_running <= 1'b1;
+        else if (div_done)
+            div_running <= 1'b0;
+    end
+end
+
+wire mul_start = is_mul_inst && !mul_running;
+wire div_start = is_div_inst && !div_running;
+
+mul u_mul (
+    .clk    (clk),
+    .rst    (reset),
+    .start  (mul_start),
+    .funct3 (alu_op),
+    .in_a   (alu_operand1),
+    .in_b   (alu_operand2),
+    .product(mul_result),
+    .done   (mul_done),
+    .busy   (mul_busy)
+);
+
+div u_div (
+    .clk    (clk),
+    .rst    (reset),
+    .start  (div_start),
+    .funct3 (alu_op),
+    .in_a   (alu_operand1),
+    .in_b   (alu_operand2),
+    .result (div_result),
+    .done   (div_done),
+    .busy   (div_busy)
+);
+
+assign mul_busy_o = mul_busy | mul_start;
+assign mul_done_o = mul_done;
+assign div_busy_o = div_busy | div_start;
+assign div_done_o = div_done;
 
 // TODO-EX-4:
 // Generate the execute-stage result (ex_result)
@@ -197,6 +274,14 @@ always @(*) begin
     	jalr:  	ex_result = pc + 4;
     	lui:   	ex_result = execute_imm;
 
+		//<---- ADDED ---- >
+		m_ext: begin
+            if (alu_op[2] == 1'b0)
+                ex_result = mul_result;
+            else
+                ex_result = div_result;
+        end
+
     	alu: begin
         	case (alu_op)
             	ADD : ex_result =
@@ -207,10 +292,7 @@ always @(*) begin
             	SLT : ex_result = {31'b0, ex_result_subs[32]};
             	SLTU: ex_result = {31'b0, ex_result_subu[32]};
             	XOR : ex_result = alu_operand1 ^ alu_operand2;
-            	SR  : ex_result =
-                  	arithsubtype
-                  	? $signed(alu_operand1) >>> alu_operand2[4:0]
-                  	: alu_operand1 >>> alu_operand2[4:0];
+            	SR  : ex_result = arithsubtype ? sra_res : (alu_operand1 >> alu_operand2[4:0]);
             	OR  : ex_result = alu_operand1 | alu_operand2;
             	AND : ex_result = alu_operand1 & alu_operand2;
             	default: ex_result = 'hx;
@@ -223,19 +305,20 @@ end
 
 
 ////////////////////////////////////////////////////////////// EX → WB pipeline register/////////////////////////////////////////
-
+wire ex_wb_stall = stall_read;
+// While MUL/DIV is still running, push a bubble into WB (do NOT repeat the previous instruction)
+wire m_stall     = (mul_busy_o | div_busy_o) & ~(mul_done | div_done);
 ex_mem_wb_reg u_ex_mem_wb (
 	.clk        	(clk),
 	.reset_n    	(reset),
-	.stall_n    	(stall_read),
+	.stall_n    	(ex_wb_stall),
 
 	.ex_result  	(ex_result),
 
-	.mem_write  	(mem_write && !branch_stall),
-	.alu_to_reg 	(alu | lui | jal |
-                  	jalr | mem_to_reg),
+	.mem_write  	(mem_write && !branch_stall && !m_stall),
+	.alu_to_reg     ((alu | lui | jal | jalr | mem_to_reg | m_ext) && !m_stall),
 	.dest_reg_sel   (dest_reg_sel),
-	.branch_taken   (branch_taken),
+	.branch_taken   (branch_taken && !m_stall),
 	.mem_to_reg 	(mem_to_reg),
 	.read_address   (dmem_raddr),
 	.alu_operation  (alu_op),
@@ -317,3 +400,5 @@ always @(posedge clk or posedge reset_n) begin
 end
 
 endmodule
+ 
+

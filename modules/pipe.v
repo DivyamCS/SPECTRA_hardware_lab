@@ -68,6 +68,13 @@
 	wire        	[31: 0] inst_fetch_pc;
 	reg        	[31: 0] fetch_pc ;  
 
+	// RV32M Wires
+	wire        m_ext;
+	wire        mul_busy;
+	wire        mul_done;
+	wire        div_busy;
+	wire        div_done;
+
 	//Stalls
     
 	wire 	wb_stall_first;
@@ -102,6 +109,14 @@
 	wire        	[31: 0] wb_read_data;
 //	wire       	[31: 0] inst_mem_address;
 
+// <----- ADDED ------ >
+wire m_done        = mul_done | div_done;
+wire m_busy        = mul_busy | div_busy;
+// m_stall_comb is COMBINATIONAL: it is high in the very first EX cycle of a MUL/DIV
+// (via mul_start/div_start inside execute), so ID/EX can be frozen immediately.
+wire m_stall_comb  = m_busy & ~m_done;
+wire hold          = stall_read | m_stall_comb;   // freeze fetch + ID/EX
+
 //------------------------------------------------------//
 assign dmem_write_address       	= wb_write_address; 	// assigning where to write
 assign dmem_read_address        	= alu_operand1 + execute_immediate;  // Assigning address to read from the data memory
@@ -126,7 +141,7 @@ IF_ID IF_ID_stage (
 	.inst_mem_read_data (inst_mem_read_data),
 
 	// Previously pipe.* signals (now explicit ports)
-	.stall_read_i   	(stall_read),
+	.stall_read_i   	(hold),
 	.inst_fetch_pc  	(inst_fetch_pc),
 	.instruction_i  	(inst_mem_read_data),
 
@@ -157,6 +172,7 @@ IF_ID IF_ID_stage (
 	.src2_select_w  	(src2_select),
 	.dest_reg_sel_w 	(dest_reg_sel),
 	.alu_operation_w	(alu_operation),
+	.m_ext_w             (m_ext),              // <-- CONNECT
 	.illegal_inst_w 	(illegal_inst),
 	.instruction_o  	(instruction)
 );
@@ -252,6 +268,7 @@ execute execute (
     .arithsubtype     (arithsubtype),
     .mem_to_reg       (mem_to_reg),
     .stall_read       (stall_read),
+	.m_ext             (m_ext),
     .dest_reg_sel     (dest_reg_sel),
     .alu_op           (alu_operation), 
     .dmem_raddr       (dmem_read_offset),
@@ -272,6 +289,12 @@ execute execute (
 	.branch_stall 	(branch_stall),
 	.next_pc      	(next_pc),
 	.branch_taken 	(branch_taken),
+
+	// Handshake signals to PIPE
+	.mul_busy_o        (mul_busy),            // <-- CONNECT 
+	.mul_done_o        (mul_done),            // <-- CONNECT 
+	.div_busy_o        (div_busy),            // <-- CONNECT
+	.div_done_o        (div_done),            // <-- CONNECT
 
 	// -----------------
 	// EX → WB
@@ -314,10 +337,11 @@ execute execute (
 // stall_read prevents any PC update.
 ////////////////////////////////////////////////////////////
 
+
 always @(posedge clk or posedge reset) begin
 	if (reset)
     	fetch_pc <= RESET;
-	else if (!stall_read)
+	else if (!hold)
     	fetch_pc <= branch_stall
                      	? fetch_pc + 4
                      	: next_pc;
@@ -345,6 +369,7 @@ wb wb_stage (
    // .dmem_read_data_i
    // .dmem_write_valid_i
    .stall_read_i         (stall_read),
+   .m_stall_i            (m_stall_comb),
    .fetch_pc_i           (fetch_pc),
    .wb_branch_i          (wb_branch),
    .wb_mem_to_reg_i      (wb_mem_to_reg),

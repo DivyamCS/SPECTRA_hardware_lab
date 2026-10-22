@@ -8,10 +8,10 @@ module tb_pipeline;
 reg clk;
 reg reset;
 
-// 100 MHz clock
+// 50 MHz clock (20 ns period: 10 ns High / 10 ns Low)
 initial begin
 	clk = 0;
-	forever #5 clk = ~clk;
+	forever #10 clk = ~clk;
 end
 
 // reset (active high)
@@ -105,7 +105,36 @@ data_mem DMEM (//TODO
 // SIMULATION TIME
 ////////////////////////////////////////////////////////////
 initial begin
-	#20000;   // run long enough to see program execute
+	#50000;   // run long enough to see program execute
+	$display("\n========================================================");
+	$display("             RV32M PIPELINE EXECUTION REPORT            ");
+	$display("========================================================");
+
+	// Check Test 1: MUL (x3 = 12 * 8 = 96) and RAW Hazard forwarding (x4 = 96 + 12 = 108)
+	if (DUT.regs[3] == 32'd96 && DUT.regs[4] == 32'd108)
+		$display("[PASS] Test 1 (MUL & RAW Stall/Forward): x3 = 96, x4 = 108");
+	else
+		$display("[FAIL] Test 1: x3 = %0d (expected 96), x4 = %0d (expected 108)", DUT.regs[3], DUT.regs[4]);
+
+	// Check Test 2: DIV (x6 = 100 / 12 = 8) and RAW Hazard forwarding (x7 = 8 - 8 = 0)
+	if (DUT.regs[6] == 32'd8 && DUT.regs[7] == 32'd0)
+		$display("[PASS] Test 2 (DIV & 32-Cycle Stall/Forward): x6 = 8, x7 = 0");
+	else
+		$display("[FAIL] Test 2: x6 = %0d (expected 8), x7 = %0d (expected 0)", DUT.regs[6], DUT.regs[7]);
+
+	// Check Test 3: REM (x8 = 100 % 12 = 4) and Chained MUL (x9 = 4 * 8 = 32)
+	if (DUT.regs[8] == 32'd4 && DUT.regs[9] == 32'd32)
+		$display("[PASS] Test 3 (REM & Chained Math): x8 = 4, x9 = 32");
+	else
+		$display("[FAIL] Test 3: x8 = %0d (expected 4), x9 = %0d (expected 32)", DUT.regs[8], DUT.regs[9]);
+
+	// Check Test 4: Branch on M result and Final Status Marker (x31 = 42)
+	if (DUT.regs[31] == 32'd42)
+		$display("[PASS] Test 4 (Branch on M-result & Final Pass Flag): x31 = 42 (0x2A)");
+	else
+		$display("[FAIL] Test 4: Final flag x31 = %0d (expected 42). Trap loop reached.", DUT.regs[31]);
+
+	$display("========================================================\n");
 	$finish;
 end
 
