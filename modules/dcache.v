@@ -2,12 +2,20 @@
 `default_nettype none
 
 // =============================================================================
-// Step 2: Controller FSM rewrite for burst refills, writeback, and PLRU victim
+// dcache : shared D-cache, 4 KB, 4-way, 16-byte lines, 64 sets
+//          write-back / write-allocate, tree-PLRU replacement, synchronous reset
+//
+// IF-A slave (towards the arbiter / addr_decode) and IF-B master (towards mem_delay).
+// Index addr[9:4], tag addr[31:10]. Data in four 256 x 32 block RAMs (one per way,
+// byte-write); tags in four 64 x 22 block RAMs; valid and dirty in flip-flops.
+// On a miss the lowest invalid way is filled first, otherwise the PLRU victim is used.
+// cache_en = 0 : every access is a 1-word burst straight to memory (bypass).
+// cache_en may only change together with a reset (a dirty line would go stale otherwise).
 // =============================================================================
 module dcache (
     input  wire        clk,
     input  wire        rst,
-    input  wire        cache_en,
+    input  wire        cache_en,       // 1 = cache on, 0 = bypass
 
     // IF-A slave
     input  wire        req,
@@ -19,11 +27,11 @@ module dcache (
     output wire [31:0] rdata,
     output wire        ready,
 
-    // IF-B master
+    // IF-B master (to mem_delay)
     output wire        m_start,
     output wire        m_we,
     output wire [29:0] m_addr,
-    output wire        m_nwords,
+    output wire        m_nwords,       // 0 = 1 word, 1 = 4 words
     output wire [31:0] m_wdata,
     output wire [3:0]  m_be,
     input  wire        m_rvalid,
@@ -31,6 +39,7 @@ module dcache (
     input  wire        m_wready,
     input  wire        m_done,
 
+    // counter events
     output wire        hit_pulse,
     output wire        miss_pulse,
     output wire        owner_pulse
@@ -73,7 +82,6 @@ module dcache (
     wire        hit     = |way_hit;
     wire [1:0]  hit_way = way_hit[0] ? 2'd0 : way_hit[1] ? 2'd1 : way_hit[2] ? 2'd2 : 2'd3;
 
-    // Replacement: fill invalid way first, then PLRU
     wire [3:0]  free_way     = ~valid_set;
     wire [1:0]  plru_victim;
     wire [1:0]  victim_way   = free_way[0] ? 2'd0 : free_way[1] ? 2'd1 : free_way[2] ? 2'd2 :
@@ -146,14 +154,17 @@ module dcache (
     endgenerate
 
     wire [21:0] victim_tag_now = in_lookup ? tag_q[victim_way] : victim_tag_reg;
+
     wire start_wb     = allocate && victim_dirty;
     wire start_refill = (allocate && !victim_dirty) || (state == STATE_REFILL_GO);
+    wire start_single = in_lookup && !cache_en;
 
-    assign m_start  = start_wb || start_refill;
-    assign m_we     = (start_wb || state == STATE_WRITEBACK);
-    assign m_nwords = 1'b1;
+    assign m_start  = start_wb || start_refill || start_single;
+    assign m_we     = (start_wb || state == STATE_WRITEBACK) ? 1'b1 :
+                      (start_refill || state == STATE_REFILL) ? 1'b0 : we_reg;
+    assign m_nwords = !(start_single || state == STATE_BYPASS);
     assign m_addr   = (start_wb || state == STATE_WRITEBACK) ? {victim_tag_now, set_idx, 2'b00} :
-                                                               {addr_reg[31:4], 2'b00};
+                      (start_refill || state == STATE_REFILL) ? {addr_reg[31:4], 2'b00} : addr_reg[31:2];
     assign m_wdata  = (state == STATE_WRITEBACK) ? data_q[victim_way_reg] : wdata_reg;
     assign m_be     = (state == STATE_WRITEBACK) ? 4'b1111 : be_reg;
 
@@ -187,6 +198,8 @@ module dcache (
                         state <= STATE_WRITEBACK;
                     end else if (allocate) begin
                         state <= STATE_REFILL;
+                    end else begin
+                        state <= STATE_BYPASS;
                     end
                 end
                 STATE_WRITEBACK: begin
@@ -204,6 +217,10 @@ module dcache (
                         valid[set_idx][victim_way_reg] <= 1'b1;
                         dirty[set_idx][victim_way_reg] <= we_reg;
                     end
+                end
+                STATE_BYPASS: begin
+                    if (m_rvalid) rdata_reg <= m_rdata;
+                    if (m_done) state <= STATE_RESP;
                 end
                 STATE_RESP: state <= STATE_IDLE;
                 default:    state <= STATE_IDLE;
