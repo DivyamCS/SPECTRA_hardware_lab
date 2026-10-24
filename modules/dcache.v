@@ -92,13 +92,25 @@ module dcache (
     wire cache_hit  = in_lookup && cache_en && hit;
     wire allocate   = in_lookup && cache_en && !hit;
 
-    plru u_plru (
-        .clk          (clk),
-        .rst          (rst),
-        .set_idx      (set_idx),
-        .access_valid (cache_hit || refill_end),
-        .access_way   (cache_hit ? hit_way : victim_way_reg),
-        .victim_way   (plru_victim)
+    //new wires for updated plru instantiation
+    wire        plru_upd     = cache_hit || refill_end;
+    wire [5:0]  plru_upd_set = set_idx;
+    wire [1:0]  plru_upd_way = cache_hit ? hit_way : victim_way_reg;
+
+    plru #(
+        .NUM_SETS(64),
+        .INDEX_BITS(6)
+    ) u_plru (
+        .clk      (clk),
+        .rst      (rst),
+        // Read port: queried during LOOKUP
+        .set      (set_idx),
+        .way_mask (4'b1111),       // All 4 ways enabled
+        .victim   (plru_victim),
+        // Write port: updated on a hit or when refill ends
+        .upd      (plru_upd),
+        .upd_set  (plru_upd_set),
+        .upd_way  (plru_upd_way)
     );
 
     wire [7:0]  in_idx  = addr[9:2];
