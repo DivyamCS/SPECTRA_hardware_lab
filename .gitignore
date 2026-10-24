@@ -1,0 +1,12 @@
+# Vivado temporary and log files not to be added
+*.jou
+*.log
+*.str
+*.Xil/
+*.runs/
+*.cache/
+*.hw/
+*.ip_user_files/
+*.sim/
+*.zip
+.Xil/
