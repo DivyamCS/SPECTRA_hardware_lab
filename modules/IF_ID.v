@@ -44,7 +44,11 @@ module IF_ID
     output [4:0]  dest_reg_sel_w,
     output [2:0]  alu_operation_w,
     output        illegal_inst_w,
-    output [31:0] instruction_o
+    output [31:0] instruction_o,
+    // Instruction in EX is an RV32M MUL/DIV/REM op
+    output                  muldiv_w,
+    // Instruction in EX is real (0 = bubble)
+    output                  valid_w
 );
 
 //////////////// Including OPCODES ////////////////////////////
@@ -65,14 +69,8 @@ reg         illegal_inst;
 
 assign instruction_o = stall_read_i ? NOP : instruction_i;
 
-////////////////////////////////////////////////////////////// Exception detection////////////////////////////////////////////////////////////
 
-// TODO-2:
-// Assert exception when:
-// - illegal instruction is detected
-// - instruction fetch is misaligned (inst_mem_offset != 2'b00)
-
-always @(posedge clk or posedge reset) begin
+always @(posedge clk) begin
     if (reset)
         exception <= 1'b0;
     else if (illegal_inst || inst_mem_offset != 2'b00)
@@ -164,9 +162,10 @@ end
 // alu, lui, jal, jalr, branch, mem_write, mem_to_reg, arithsubtype
 
 id_ex_reg u_id_ex (
-	.clk        	(clk),
-	.reset_n    	(reset),
-	.stall_n    	(stall_read_i),
+    .clk              (clk),
+    .reset_n          (reset),
+    .stall_n          (stall_read_i),
+    .flush            (flush_i),
 
 	// From ID
 	.immediate_i	(immediate),
@@ -193,6 +192,12 @@ id_ex_reg u_id_ex (
 	.alu_op_i   	(instruction_i[`FUNC3]),
 	.illegal_inst_i (illegal_inst),
 
+    // ARITHR with funct7=0000001 is an RV32M instruction.
+    .muldiv_i         (
+        (instruction_i[`OPCODE] == ARITHR) &&
+        (instruction_i[31:25] == MULDIV_F7)
+    ),
+
 	// To EX (WIRES)
 	.execute_immediate_o (execute_immediate_w),
 	.immediate_sel_o 	(immediate_sel_w),
@@ -210,7 +215,10 @@ id_ex_reg u_id_ex (
 	.dest_reg_sel_o  	(dest_reg_sel_w),
 	.alu_op_o        	(alu_operation_w),
 	.illegal_inst_o  	(illegal_inst_w)
+    .muldiv_o            (muldiv_w),
+    .valid_o             (valid_w)
 );
+
 endmodule
 
 
@@ -220,6 +228,7 @@ module id_ex_reg (
     input         clk,
     input         reset_n,
     input         stall_n,
+    input         flush,
 
     // Inputs from ID
     input  [31:0] immediate_i,
@@ -238,6 +247,7 @@ module id_ex_reg (
     input  [4:0]  dest_reg_sel_i,
     input  [2:0]  alu_op_i,
     input         illegal_inst_i,
+    input         muldiv_i,
 
     // Outputs to EX
     output reg [31:0] execute_immediate_o,
@@ -255,11 +265,13 @@ module id_ex_reg (
     output reg [4:0]  src2_sel_o,
     output reg [4:0]  dest_reg_sel_o,
     output reg [2:0]  alu_op_o,
-    output reg        illegal_inst_o
+    output reg        illegal_inst_o,
+    output reg        muldiv_o,
+    output reg        valid_o
 );
 
-always @(posedge clk or posedge reset_n) begin
-    if (reset_n) begin
+always @(posedge clk) begin
+    if (reset_n || flush) begin
         execute_immediate_o <= 32'h0;
         immediate_sel_o     <= 1'b0;
         alu_o               <= 1'b0;
@@ -276,6 +288,8 @@ always @(posedge clk or posedge reset_n) begin
         dest_reg_sel_o      <= 5'h0;
         alu_op_o            <= 3'h0;
         illegal_inst_o      <= 1'b0;
+        muldiv_o            <= 1'b0;
+        valid_o             <= 1'b0;
     end
     else if (!stall_n) begin
         execute_immediate_o <= immediate_i;
@@ -294,6 +308,8 @@ always @(posedge clk or posedge reset_n) begin
         dest_reg_sel_o      <= dest_reg_sel_i;
         alu_op_o            <= alu_op_i;
         illegal_inst_o      <= illegal_inst_i;
+        muldiv_o            <= muldiv_i;
+        valid_o             <= 1'b1;
     end
 end
 

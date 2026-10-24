@@ -25,6 +25,7 @@ module wb
 
     input [31:0] dmem_read_data_i,
     input        dmem_write_valid_i,
+    input        fetch_hold_i,
 
     // Outputs
     output [31:0] inst_mem_address_o,
@@ -41,7 +42,6 @@ module wb
 
 // import "opcode.vh" for OPCODES
 `include "opcode.vh"
-
 
 ////////////////////////////////////////////////////////////
 // assigning these variables to read from the instruction memory
@@ -60,14 +60,11 @@ assign wb_stall_o = wb_stall_first_o || wb_stall_second_o;
 // instruction fetch pc update
 ////////////////////////////////////////////////////////////
 
-// Drive instruction memory address using the current fetch PC
-// Instruction fetch must be disabled when a read stall is asserted
-
-always @(posedge clk or posedge reset) begin
+always @(posedge clk) begin
     if (reset)
-        inst_fetch_pc_o <= RESET; // reset to instruction fetch program counter
-    else if (!stall_read_i)
-        inst_fetch_pc_o <= fetch_pc_i; // fetch the next instruction
+        inst_fetch_pc_o <= RESET;
+    else if (!fetch_hold_i)
+        inst_fetch_pc_o <= fetch_pc_i;
 end
 
 ////////////////////////////////////////////////////////////
@@ -79,7 +76,7 @@ end
 // - Second cycle: extend stall by one more cycle
 // - Stall must not advance when a pending load has not completed
 
-always @(posedge clk or posedge reset) begin
+always @(posedge clk) begin
     if (reset) begin
         wb_stall_first_o  <= 1'b0;
         wb_stall_second_o <= 1'b0;
@@ -100,7 +97,7 @@ end
 // - Generate write data with proper byte replication
 // - Generate byte-enable signals based on address alignment
 
-always @(posedge clk or posedge reset) begin
+always @(posedge clk) begin
     if (reset) begin
         wb_write_address_o <= 32'h0;
         wb_write_byte_o    <= 4'h0;
@@ -125,10 +122,12 @@ always @(posedge clk or posedge reset) begin
                 wb_write_data_o <= {2{alu_operand2_i[15:0]}};
                 wb_write_byte_o <= write_address_i[1] ? 4'b1100 : 4'b0011;
             end
+
             SW: begin
                 wb_write_data_o <= alu_operand2_i;
                 wb_write_byte_o <= 4'b1111;
             end
+
             default: begin
                 wb_write_data_o <= 32'hx;
                 wb_write_byte_o <= 4'hx;
@@ -141,11 +140,6 @@ end
 // load instruction based on the OPCODES
 ////////////////////////////////////////////////////////////
 
-// Format load data based on load type
-// - Apply sign-extension or zero-extension
-// - Select correct byte or halfword using read address bits
-
-
 always @* begin
     case (wb_alu_operation_i)
         LB: begin // Load byte
@@ -157,7 +151,6 @@ always @* begin
             endcase
         end
 
-        // load halfword
         LH: wb_read_data_o =
             wb_read_address_i[1]
             ? {{16{dmem_read_data_i[31]}}, dmem_read_data_i[31:16]}
@@ -174,7 +167,6 @@ always @* begin
             endcase
         end
 
-        // load halfword unsigned
         LHU: wb_read_data_o =
             wb_read_address_i[1]
             ? {16'h0, dmem_read_data_i[31:16]}

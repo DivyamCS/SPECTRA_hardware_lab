@@ -15,14 +15,16 @@ module instr_mem (
     	$readmemh("imem.hex", imem);
 	end
 
-	// Synchronous instruction fetch
-	// Use word-aligned PC (pc[11:2]) to index memory
-	always @(posedge clk) begin
-    	instr <= imem[pc[11:2]];	// word address
-	end
+    // Synchronous instruction fetch
+    // Use word-aligned PC (pc[11:2]) to index memory
+    always @(posedge clk) begin
+        if (reset)                 // NEW: synchronous reset
+            instr <= 32'h0;
+        else
+            instr <= imem[pc[11:2]]; // word address
+    end
 
 endmodule
-
 
 
 //====================================
@@ -67,29 +69,34 @@ module data_mem (
 	// - Provide 1-cycle read latency
 	// - Handle same-cycle read-after-write using byte-level forwarding
 
-	always @(posedge clk) begin
-    	// ---- WRITE ----
-    	if (we) begin
-        	if (wstrb[0]) dmem[windex][7:0]   <= wdata[7:0];
-        	if (wstrb[1]) dmem[windex][15:8]  <= wdata[15:8];
-        	if (wstrb[2]) dmem[windex][23:16] <=wdata[23:16];// TODO-DMEM-3
-        	if (wstrb[3]) dmem[windex][31:24] <=wdata[31:24];// TODO-DMEM-3
-    	end
+    always @(posedge clk) begin
+        if (reset) begin            // NEW: synchronous reset
+            rdata <= 32'h0;
+        end
+        else begin
+            // ---- WRITE ----
+            if (we) begin
+                if (wstrb[0]) dmem[windex][7:0]   <= wdata[7:0];
+                if (wstrb[1]) dmem[windex][15:8]  <= wdata[15:8];
+                if (wstrb[2]) dmem[windex][23:16] <= wdata[23:16]; // TODO-DMEM-3
+                if (wstrb[3]) dmem[windex][31:24] <= wdata[31:24]; // TODO-DMEM-3
+            end
 
-    	// ---- READ (1-cycle latency, RAW-safe) ----
-    	if (re) begin
-        	if (we && (rindex == windex)) begin
-            	// Byte-level forwarding
-            	rdata[7:0]   <= wstrb[0] ? wdata[7:0]   : dmem[rindex][7:0];
-            	rdata[15:8]  <= wstrb[1] ? wdata[15:8]   : dmem[rindex][15:8];// TODO-DMEM-3
-            	rdata[23:16] <= wstrb[2] ? wdata[23:16]   : dmem[rindex][23:16];// TODO-DMEM-3
-            	rdata[31:24] <= wstrb[3] ? wdata[31:24]   : dmem[rindex][31:24];// TODO-DMEM-3
-        	end
-        	else begin
-            	rdata <= dmem[rindex];
-        	end
-    	end
-    	// else: rdata holds value (exact match to original)
-	end
+            // ---- READ (1-cycle latency, RAW-safe) ----
+            if (re) begin
+                if (we && (rindex == windex)) begin
+                    // Byte-level forwarding
+                    rdata[7:0]   <= wstrb[0] ? wdata[7:0]   : dmem[rindex][7:0];
+                    rdata[15:8]  <= wstrb[1] ? wdata[15:8]  : dmem[rindex][15:8]; // TODO-DMEM-3
+                    rdata[23:16] <= wstrb[2] ? wdata[23:16] : dmem[rindex][23:16]; // TODO-DMEM-3
+                    rdata[31:24] <= wstrb[3] ? wdata[31:24] : dmem[rindex][31:24]; // TODO-DMEM-3
+                end
+                else begin
+                    rdata <= dmem[rindex];
+                end
+            end
+            // else: rdata holds value (exact match to original)
+        end
+    end
 
 endmodule

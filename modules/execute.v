@@ -53,6 +53,18 @@ module execute
 	output    	wb_mem_to_reg,
 	output [1:0]  wb_read_address,
 	output [2:0]  mem_alu_operation
+
+    // RV32M support
+    input         muldiv,
+    input         valid,
+    input         md_done,
+    input  [31:0] md_result,
+    input         bubble,
+    // RV32M handshake
+    output        md_start,
+    output        md_wait,
+    output        wb_valid
+
 );
 
 //////////////// Including OPCODES ////////////////////////////
@@ -197,6 +209,13 @@ always @(*) begin
     	jalr:  	ex_result = pc + 4;
     	lui:   	ex_result = execute_imm;
 
+        // A load carries its address to WB, where the data port is issued.
+        mem_to_reg: ex_result = write_address;
+
+        // Keep MUL/DIV before `alu`, because ARITHR also sets alu=1.
+        muldiv: ex_result = md_result;
+
+
     	alu: begin
         	case (alu_op)
             	ADD : ex_result =
@@ -221,13 +240,36 @@ always @(*) begin
 	endcase
 end
 
+//////////////////////////////////////////////////////////////
+// EX -> WB pipeline register
+//////////////////////////////////////////////////////////////
 
-////////////////////////////////////////////////////////////// EX → WB pipeline register/////////////////////////////////////////
+// RV32M start/busy/done handshake.
+wire md_req = muldiv & ~branch_stall;
+
+// 1 = start already sent for the instruction currently in EX.
+reg md_started;
+
+// Start once; do not start while the pipeline is frozen.
+assign md_start = md_req & ~md_started & ~stall_read;
+
+// Busy until the unit reports completion for this instruction.
+assign md_wait = md_req & ~(md_started & md_done);
+
+always @(posedge clk) begin
+    if (reset)
+        md_started <= 1'b0;
+    else if (md_start)
+        md_started <= 1'b1;
+    else if (md_started & md_done & ~stall_read)
+        md_started <= 1'b0;
+end
+
 
 ex_mem_wb_reg u_ex_mem_wb (
-	.clk        	(clk),
-	.reset_n    	(reset),
-	.stall_n    	(stall_read),
+    .clk                  (clk),
+    .reset_n              (reset),
+    .stall_n              (stall_read),
 
 	.ex_result  	(ex_result),
 
@@ -248,16 +290,24 @@ ex_mem_wb_reg u_ex_mem_wb (
 	.ex_mem_branch_nxt	(wb_branch_nxt),
 	.ex_mem_mem_to_reg	(wb_mem_to_reg),
 	.ex_mem_read_address  (wb_read_address),
-	.ex_mem_alu_operation (mem_alu_operation)
+	.ex_mem_alu_operation (mem_alu_operation),
+
+    .bubble               (bubble),
+    .valid                (valid),
 );
 
 endmodule
 
 
+//////////////////////////////////////////////////////////////
+// EX/MEM -> WB pipeline register
+//////////////////////////////////////////////////////////////
+
 module ex_mem_wb_reg (
-	input     	clk,
-	input     	reset_n,
-	input     	stall_n,
+    input         clk,
+    input         reset_n,
+    input         stall_n,
+    input         bubble,
 
 	// Data
 	input  [31:0] ex_result,
@@ -291,7 +341,7 @@ module ex_mem_wb_reg (
 // - When a stall is asserted, prevent unintended updates
 // - All outputs must hold their previous values unless explicitly updated
 
-always @(posedge clk or posedge reset_n) begin
+always @(posedge clk) begin
 	if (reset_n) begin
     	ex_mem_result     	<= 32'h0;
     	ex_mem_mem_write  	<= 1'b0;
@@ -303,17 +353,21 @@ always @(posedge clk or posedge reset_n) begin
     	ex_mem_read_address   <= 2'h0;
     	ex_mem_alu_operation  <= 3'h0;
 	end
-	else if (!stall_n) begin
-    	ex_mem_result     	<= ex_result;
-    	ex_mem_mem_write  	<= mem_write;
-    	ex_mem_alu_to_reg 	<= alu_to_reg;
-    	ex_mem_dest_reg_sel   <= dest_reg_sel;
-    	ex_mem_branch     	<= branch_taken;
-    	ex_mem_branch_nxt 	<= ex_mem_branch;   
-    	ex_mem_mem_to_reg 	<= mem_to_reg;
-    	ex_mem_read_address   <= read_address;
-    	ex_mem_alu_operation  <= alu_operation;
-	end
+    else if (!stall_n) begin
+        ex_mem_result       <= ex_result;
+
+        // A bubble must not issue a store or register write.
+        ex_mem_mem_write <= bubble ? 1'b0 : mem_write;
+        ex_mem_alu_to_reg <= bubble ? 1'b0 : alu_to_reg;
+
+        ex_mem_dest_reg_sel <= dest_reg_sel;
+        ex_mem_branch       <= bubble ? 1'b0 : branch_taken;
+        ex_mem_branch_nxt   <= ex_mem_branch;
+        ex_mem_mem_to_reg   <= bubble ? 1'b0 : mem_to_reg;
+        ex_mem_read_address <= read_address;
+        ex_mem_alu_operation <= alu_operation;
+        ex_mem_valid        <= bubble ? 1'b0 : valid;
+    end
 end
 
 endmodule

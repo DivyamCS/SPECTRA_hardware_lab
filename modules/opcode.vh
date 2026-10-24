@@ -1,4 +1,4 @@
-//  OPCODE and parameter definitions
+// OPCODE and parameter definitions
 
 `define OPCODE      6:0
 `define FUNC3       14:12
@@ -6,6 +6,7 @@
 `define RD          11:7
 `define RS1         19:15
 `define RS2         24:20
+`define FUNC7       31:25
 
 
 localparam  [31: 0] NOP        = 32'h0000_0013;     // addi x0, x0, 0
@@ -19,6 +20,8 @@ localparam  [ 6: 0] LUI     = 7'b0110111,        // U-type
                     STORE   = 7'b0100011,        // S-type
                     ARITHI  = 7'b0010011,        // I-type
                     ARITHR  = 7'b0110011;        // R-type
+                    AUIPC  = 7'b0010111; // U-type
+                         // AUIPC: rd = PC + (immediate << 12)
 
 
 
@@ -51,3 +54,17 @@ localparam  [ 2: 0] ADD     = 3'b000,    // inst[30] == 0: ADD, inst[31] == 1: S
                     SR      = 3'b101,    // inst[30] == 0: SRL, inst[31] == 1: SRA
                     OR      = 3'b110,
                     AND     = 3'b111;
+
+// M-extension (RV32M): ARITHR opcode with funct7 = 0000001
+localparam [6:0] MULDIV_F7 = 7'b0000001;
+
+// FUNC3 values when INST[31:25] == MULDIV_F7
+localparam [2:0]
+    MUL   = 3'b000, // low 32 bits of rs1 * rs2
+    MULH  = 3'b001, // high 32 bits, signed * signed
+    MULHSU= 3'b010, // high 32 bits, signed * unsigned
+    MULHU = 3'b011, // high 32 bits, unsigned * unsigned
+    DIV   = 3'b100, // signed divide
+    DIVU  = 3'b101, // unsigned divide
+    REM   = 3'b110, // signed remainder
+    REMU  = 3'b111; // unsigned remainder
