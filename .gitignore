@@ -1,12 +1,73 @@
-# Vivado temporary and log files not to be added
+# ==============================================================================
+# Gitignore for RISC-V Hardware Projects (Vivado / XSIM / Icarus Verilog)
+# ==============================================================================
+
+# ------------------------------------------------------------------------------
+# Vivado Project Files & Caches
+# ------------------------------------------------------------------------------
 *.jou
 *.log
 *.str
+*.pb
+*.wdb
+*.vcd
+*.fsdb
+.Xil/
 *.Xil/
-*.runs/
+.hbs/
+HD.runs/
+*.zip
+
+# Vivado Project Cache, Hardware Manager, and Run Directories
 *.cache/
 *.hw/
 *.ip_user_files/
+*.runs/
 *.sim/
-*.zip
-.Xil/
+*.gen/
+
+# Synthesis & Implementation Intermediate Reports / Checkpoints
+*.dcp
+*.rpt
+timing_*.rpt
+timing_*.txt
+div_timing_report.txt
+
+# Bitstreams (Optional: uncomment if you don't track final .bit files in Git)
+# *.bit
+# *.bin
+
+# ------------------------------------------------------------------------------
+# Command-Line Verilog Tools (xvlog, xelab, xsim, iverilog)
+# ------------------------------------------------------------------------------
+# XSIM outputs
+xsim.dir/
+webtalk*.log
+webtalk*.jou
+xsim*.jou
+xsim*.log
+xvlog*.log
+xvlog*.pb
+xelab*.log
+xelab*.pb
+
+# Icarus Verilog / GTKWave outputs
+sim_*
+*.out
+*.vvp
+
+# ------------------------------------------------------------------------------
+# Editors & OS Files
+# ------------------------------------------------------------------------------
+# VS Code
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+*.code-workspace
+
+# OS Clutter
+.DS_Store
+Thumbs.db
+Desktop.ini
