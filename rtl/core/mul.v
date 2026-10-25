@@ -42,7 +42,7 @@ module mul (
     // State / Handshake Shift Register (3-cycle counter)
     reg [2:0] state_pipe;
 
-    always @(posedge clk or posedge rst) begin
+    always @(posedge clk) begin
         if (rst) begin
             state_pipe  <= 3'b000;
             a_reg1      <= 33'sh0;
@@ -51,19 +51,18 @@ module mul (
             prod_reg2   <= 66'sh0;
             funct3_reg2 <= 3'b000;
         end else begin
-            // 3-bit one-hot tracker for cycles
-            if (start && state_pipe == 3'b000) begin
-                state_pipe <= 3'b001; // Cycle 1: Started
+            // One-hot tracker: a start is taken unless a product is being formed (cycle 1);
+            // the done cycle may start the next multiply (back-to-back operation)
+            if (start && !state_pipe[0]) begin
+                state_pipe <= 3'b001; // Cycle 1: Multiplying
             end else if (state_pipe[0]) begin
-                state_pipe <= 3'b010; // Cycle 2: Multiplying
-            end else if (state_pipe[1]) begin
-                state_pipe <= 3'b100; // Cycle 3: Done
+                state_pipe <= 3'b010; // Cycle 2: Done
             end else begin
                 state_pipe <= 3'b000; // Idle
             end
 
             // --- Pipeline Stage 1: Input Registering ---
-            if (start && state_pipe == 3'b000) begin
+            if (start && !state_pipe[0]) begin
                 a_reg1      <= ext_a;
                 b_reg1      <= ext_b;
                 funct3_reg1 <= funct3;
@@ -78,11 +77,11 @@ module mul (
         end
     end
 
-    // Multiplier is busy while active in cycles 1 and 2
+    // Multiplier is busy in cycles 1 and 2
     assign busy = state_pipe[0] | state_pipe[1];
 
-    // Done asserts during cycle 3 when prod_reg2 holds the complete product
-    assign done = state_pipe[2];
+    // Done asserts in cycle 2, when prod_reg2 holds the complete product (3 cycles in EX)
+    assign done = state_pipe[1];
 
     // -------------------------------------------------------------
     // Pipeline Stage 3: Output Selection
