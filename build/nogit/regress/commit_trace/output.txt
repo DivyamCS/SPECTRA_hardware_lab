@@ -1,0 +1,7 @@
+Traceback (most recent call last):
+  File "F:\02_The_Codes\06_Personal\final\SPECTRA_hardware_lab\tb/commit_trace/run.py", line 126, in <module>
+    main()
+  File "F:\02_The_Codes\06_Personal\final\SPECTRA_hardware_lab\tb/commit_trace/run.py", line 78, in main
+    raw = open(os.path.join(ROOT, r), "rb").read()  # as rv32sim wrote it (CRLF on Windows)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: 'F:\\02_The_Codes\\06_Personal\\final\\SPECTRA_hardware_lab\\tb/ref/trace_t_hazard_fwd1.txt'
