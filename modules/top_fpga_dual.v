@@ -5,13 +5,13 @@
 //   - 100 MHz board oscillator with 50 MHz pipeline clock divider
 //   - Dual CPU Cores (pipe_0: Hart 0, pipe_1: Hart 1)
 //   - Dedicated Instruction Memory BRAMs for each core
-//   - Shared Data Memory BRAM with wait-state generator (mem_delay.v)
+//   - Shared Data Memory BRAM with wait-state generator (memory_delay.v)
 //   - Round-robin memory arbiter for fair core access
 //   - Core 1 release register (0x8000_003C): Core 1 stays in reset until
 //     Core 0 boots and triggers release
 //   - Shared MMIO block with hardware spinlocks & barriers (Task 5)
 //   - Dual-Core Performance Counters (cycles, instret for each core)
-//   - Result Streamer (result_streamer.v) snooping stores (Task 6)
+//   - Result Streamer (store_streamer.v) snooping stores (Task 6)
 //   - UART Transmitter (uart_tx.v at 115200 baud on pin D4)
 //   - Switch-selectable 7-segment display (Task 8) with Core 0/1 metrics
 //   - Status LEDs for both cores
@@ -118,7 +118,7 @@ module top_fpga_dual #(
         else if (grant_c1 && c0_req) arb_turn <= 1'b0;
     end
 
-    // Multiplexed bus to mem_delay
+    // Multiplexed bus to memory_delay
     wire        arb_re    = grant_c0 ? c0_dmem_re    : (grant_c1 ? c1_dmem_re    : 1'b0);
     wire [31:0] arb_raddr = grant_c0 ? c0_dmem_raddr : (grant_c1 ? c1_dmem_raddr : 32'd0);
     wire        arb_we    = grant_c0 ? c0_dmem_we    : (grant_c1 ? c1_dmem_we    : 1'b0);
@@ -140,7 +140,7 @@ module top_fpga_dual #(
     wire [31:0] bram_raddr, bram_waddr, bram_wdata, bram_raw_rdata;
     wire [ 3:0] bram_wstrb;
 
-    mem_delay #(
+    memory_delay #(
         .WAIT_CYCLES(MEM_DELAY)
     ) U_MEM_DELAY (
         .clk       (sys_clk),
@@ -179,7 +179,7 @@ module top_fpga_dual #(
     wire [31:0] c0_cycles, c0_instret;
     wire [31:0] c1_cycles, c1_instret;
 
-    perf_counters U_PERF_C0 (
+    cycle_counters U_PERF_C0 (
         .clk           (sys_clk),
         .reset         (reset),
         .instret_en    (!c0_stall && !c0_exception),
@@ -187,7 +187,7 @@ module top_fpga_dual #(
         .instret_cnt_o (c0_instret)
     );
 
-    perf_counters U_PERF_C1 (
+    cycle_counters U_PERF_C1 (
         .clk           (sys_clk),
         .reset         (core1_reset),
         .instret_en    (!c1_stall && !c1_exception && core1_released),
@@ -307,7 +307,7 @@ module top_fpga_dual #(
     wire        stream_uart_valid;
 
     // Stream stores from whichever core was granted memory write
-    result_streamer #(
+    store_streamer #(
         .OUTPUT_BASE (32'h0001_F000),
         .OUTPUT_MASK (32'hFFFF_F000)
     ) U_STREAMER (
