@@ -1,0 +1,464 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SPECTRA Dashboard</title>
+<style>
+:root{
+  --bg:#071226; --panel:#0c1c36; --panel2:#10244a; --line:#1f3a66; --ink:#eef4ff; --muted:#9fb3d1;
+  --c0:#4fd8cb; --c1:#ffad5e; --ok:#5ee08a; --bad:#ff6b6b; --accent:#7aa7ff;
+  --mono:ui-monospace,"JetBrains Mono",Consolas,Menlo,monospace;
+  --sans:Inter,"Segoe UI",system-ui,-apple-system,sans-serif;
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans)}
+header{display:flex;align-items:center;gap:20px;padding:16px 28px;border-bottom:1px solid var(--line);
+  background:linear-gradient(180deg,#0b1d3c,#071226)}
+.brand{font-weight:800;font-size:26px;letter-spacing:.5px}
+.brand small{display:block;font-weight:500;font-size:12px;color:var(--muted);letter-spacing:0}
+nav{display:flex;gap:6px;margin-left:12px}
+nav button{background:none;border:1px solid transparent;color:var(--muted);font:600 14px var(--sans);
+  padding:8px 14px;border-radius:8px;cursor:pointer}
+nav button.on{color:var(--ink);background:var(--panel2);border-color:var(--line)}
+#status{margin-left:auto;font:12px var(--mono);color:var(--muted);padding:6px 10px;border:1px solid var(--line);border-radius:999px;max-width:46vw;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+main{padding:22px 28px;max-width:1500px;margin:0 auto}
+.hidden{display:none!important}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px}
+.row{display:flex;gap:18px;flex-wrap:wrap}
+h2{font-size:15px;margin:0 0 10px;color:var(--muted);font-weight:600;letter-spacing:.4px;text-transform:uppercase}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0}
+.chip{font:600 11px var(--mono);padding:3px 8px;border-radius:6px;border:1px solid var(--line);color:var(--muted)}
+.chip.on{color:#04151c;background:var(--c0);border-color:var(--c0)}
+.chip.prog{color:var(--ink);background:var(--panel2)}
+canvas{image-rendering:pixelated;background:#020814;border-radius:8px;display:block;max-width:100%}
+.big{font:700 34px var(--mono)}
+.kv{display:grid;grid-template-columns:auto auto auto;gap:6px 18px;font:13px var(--mono);align-items:baseline}
+.kv .h{color:var(--muted);font:600 11px var(--sans);text-transform:uppercase}
+.c0{color:var(--c0)} .c1{color:var(--c1)} .ok{color:var(--ok)} .bad{color:var(--bad)} .muted{color:var(--muted)}
+button.act{background:var(--accent);color:#06122a;border:0;font:700 13px var(--sans);padding:9px 14px;border-radius:8px;cursor:pointer}
+button.ghost{background:none;color:var(--ink);border:1px solid var(--line);font:600 13px var(--sans);padding:8px 12px;border-radius:8px;cursor:pointer}
+table{border-collapse:collapse;width:100%;font:12.5px var(--mono)}
+th{text-align:left;color:var(--muted);font:600 11px var(--sans);text-transform:uppercase;padding:8px;border-bottom:1px solid var(--line)}
+td{padding:7px 8px;border-bottom:1px solid #132a50;white-space:nowrap}
+tr:hover td{background:#0e2142}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(330px,1fr));gap:16px}
+.cmp{position:relative}
+.cmp .t{font:700 22px var(--mono);margin-top:8px}
+.cmp .bar{height:6px;background:#132a50;border-radius:4px;overflow:hidden;margin-top:8px}
+.cmp .bar i{display:block;height:100%;background:var(--accent);width:0}
+.cmp.win{border-color:var(--ok);box-shadow:0 0 0 1px var(--ok) inset}
+.badge{font:700 13px var(--mono);padding:3px 8px;border-radius:6px;background:var(--panel2);margin-left:10px;vertical-align:4px}
+.cmp .hd{font-weight:700;line-height:1.35}
+.sw{display:grid;grid-template-columns:repeat(16,1fr);gap:6px;margin:10px 0 16px}
+.sw div{text-align:center;font:10px var(--mono);color:var(--muted)}
+.sw button{width:100%;height:46px;border-radius:6px;border:1px solid var(--line);background:#091830;cursor:pointer;position:relative}
+.sw button::after{content:"";position:absolute;left:22%;right:22%;height:16px;border-radius:3px;background:#5d6f8f;bottom:6px;transition:.12s}
+.sw button.on::after{bottom:24px;background:var(--c0)}
+.sel{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+select,input[type=range]{background:var(--panel2);color:var(--ink);border:1px solid var(--line);border-radius:6px;padding:6px}
+.legend{display:flex;gap:16px;font-size:12px;color:var(--muted);margin-top:8px}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:6px;vertical-align:-1px}
+.note{font-size:12px;color:var(--muted);margin-top:8px;line-height:1.5}
+#tab-guide td{white-space:normal;vertical-align:top}
+#tab-guide td:nth-child(3),#tab-guide td:nth-child(5){white-space:nowrap}
+.card{max-width:100%;overflow-x:auto}
+@media (max-width:760px){
+  header{flex-wrap:wrap;gap:10px;padding:12px 16px}
+  nav{margin-left:0;flex-wrap:wrap}
+  nav button{padding:7px 10px}
+  #status{margin-left:0;max-width:100%}
+  main{padding:16px}
+  .sw{grid-template-columns:repeat(8,1fr)}
+  .grid{grid-template-columns:1fr}
+  .big{font-size:28px}
+}
+</style>
+</head>
+<body>
+<header>
+  <div class="brand">SPECTRA<small>Switch-Gated Profiling and Evaluation of Cache &amp; Two-Core RISC-V Architectures</small></div>
+  <nav>
+    <button data-tab="live" class="on">Live</button>
+    <button data-tab="compare">Compare</button>
+    <button data-tab="runs">Runs</button>
+    <button data-tab="simulate">Simulate</button>
+    <button data-tab="guide">Demo guide</button>
+  </nav>
+  <div id="status">connecting…</div>
+</header>
+
+<main>
+<section id="tab-live">
+  <div class="row">
+    <div class="card" style="flex:0 0 auto">
+      <h2 id="live-title">Waiting for a run</h2>
+      <canvas id="live-canvas" width="384" height="384"></canvas>
+      <div class="legend"><span><i style="background:var(--c0)"></i>core 0</span><span><i style="background:var(--c1)"></i>core 1</span></div>
+      <div class="sel" style="margin-top:12px">
+        <span class="muted">Playback</span>
+        <select id="live-speed">
+          <option value="0">real time</option>
+          <option value="5" selected>slow: about 5 s</option>
+          <option value="15">slower: about 15 s</option>
+          <option value="30">slowest: about 30 s</option>
+        </select>
+        <button class="ghost" id="live-replay">&#8635; Replay</button>
+      </div>
+      <div class="note" id="live-play"></div>
+    </div>
+    <div class="card" style="flex:1 1 380px">
+      <h2>Configuration</h2>
+      <div id="live-chips" class="chips"></div>
+      <h2 style="margin-top:18px">Result</h2>
+      <div id="live-time" class="big">–</div>
+      <div id="live-sub" class="muted" style="margin:4px 0 16px;font-size:13px"></div>
+      <div id="live-kv" class="kv"></div>
+      <div class="note" id="live-note"></div>
+    </div>
+  </div>
+</section>
+
+<section id="tab-compare" class="hidden">
+  <div class="card" style="margin-bottom:16px">
+    <div class="sel">
+      <button class="act" id="play">▶ Play side by side</button>
+      <button class="ghost" id="autosel">Pick latest of each config</button>
+      <span class="muted" style="margin-left:8px">Program</span>
+      <select id="cmp-prog"></select>
+      <span class="muted" style="margin-left:8px">Slow motion</span>
+      <input type="range" id="slow" min="0" max="6" step="1" value="0">
+      <span id="slow-l" class="muted"></span>
+    </div>
+    <div class="note">Every card replays its own run against the same clock, using the cycle stamp of each frame or row. Cards finish in proportion to their real cycle counts at 50 MHz. Select cards on the Runs tab.</div>
+  </div>
+  <div id="cmp-grid" class="grid"></div>
+</section>
+
+<section id="tab-runs" class="hidden">
+  <div class="card">
+    <h2>All runs</h2>
+    <table><thead><tr><th></th><th>Run</th><th>Source</th><th>Program</th><th>Config</th><th>Cores</th><th>Cycles</th><th>Time</th>
+    <th>CPI c0</th><th>D-hit c0</th><th>Arb wait</th><th>Checksum</th><th></th></tr></thead><tbody id="runs-body"></tbody></table>
+    <div class="note">Tick runs to compare them. Source "sim" = rv32sim's cycle-approximate model; "rtl" = the RTL in simulation (xsim); only "board" runs are measurements.</div>
+  </div>
+</section>
+
+<section id="tab-simulate" class="hidden">
+  <div class="card">
+    <h2>Board switches (CONFIG = SW[15:0] at reset)</h2>
+    <div class="sw" id="sw"></div>
+    <div class="chips" id="sw-chips"></div>
+    <div class="sel" style="margin-top:10px">
+      <button class="act" id="sim-one">Run on the simulated board</button>
+      <button class="ghost" id="sim-cores">1 vs 2 cores, every program</button>
+      <button class="ghost" id="sim-ablate">Ablation sweep (this program)</button>
+    </div>
+    <div class="note">The simulated board is rv32sim: exact results, approximate cycles. Runs appear on the Runs tab and can be compared like board runs.</div>
+  </div>
+</section>
+<section id="tab-guide" class="hidden">
+  <div class="card">
+    <h2>Every demo case: set the switches, then press BTNC</h2>
+    <div class="note" style="margin-bottom:12px">Up = the switch is on. CONFIG is read at reset, so set the switches first and then press BTNC.
+      After each run the 7-segment display tours the results, 3 s per item: cycles (thousands), then for each core the I-cache hit %, D-cache hit % and CPI,
+      and with two cores each core's arbiter wait %. LED15:14 and LED11 show which item it is, with the same meaning as the manual browser; LED13 = core 1;
+      LED10 = tour on. Moving SW15:14 or pressing BTNL / BTNR switches to the manual browser; BTNU starts the tour again.
+      "board" results were measured on the FPGA (docs/results/board_soc.md); the other cases show their numbers on the Live tab after the run.</div>
+    <table><thead><tr><th>#</th><th>Case</th><th>Switches (SW15 &#8230; SW0)</th><th>Up</th><th>CONFIG</th><th>Result</th><th>Say</th><th></th></tr></thead>
+    <tbody id="guide-body"></tbody></table>
+  </div>
+</section>
+</main>
+
+<script>
+"use strict";
+const $ = id => document.getElementById(id);
+const CLK = 50e6, LAT = [5, 6, 8, 10], PROGS = ["gol", "mandel_halves", "mandel_interleaved", "matmul"];
+const PNAME = {gol: "Game of Life", mandel_halves: "Mandelbrot, halves", mandel_interleaved: "Mandelbrot, interleaved", matmul: "MatMul 32×32"};
+const SWN = ["FWD","DC","DUAL","LAT0","LAT1","PRG0","PRG1","IC","RSVD","RSVD","RSVD","RSVD","RSVD","RSVD","DSP0","DSP1"];
+let summary = {runs: [], version: -1}, cache = {}, selected = new Set(), swcfg = 0x0097;
+
+// ---------- helpers ----------
+const b64 = s => Uint8Array.from(atob(s), c => c.charCodeAt(0));
+const fmtC = c => c == null ? "–" : c.toLocaleString("en-US");
+const fmtT = c => c == null ? "–" : (c / CLK >= 1 ? (c / CLK).toFixed(3) + " s" : (c / CLK * 1e3).toFixed(2) + " ms");
+const pct = (a, b) => b ? (100 * a / b).toFixed(2) + "%" : "–";
+function chips(cfg, prog, el, noProg) {
+  const d = [["FWD", cfg & 1], ["DC", cfg >> 1 & 1], ["DUAL", cfg >> 2 & 1], ["IC", cfg >> 7 & 1]];
+  el.innerHTML = (noProg ? "" : `<span class="chip prog">${PNAME[prog] || prog}</span>`) +
+    d.map(([n, v]) => `<span class="chip ${v ? "on" : ""}">${n}</span>`).join("") +
+    `<span class="chip">L=${LAT[cfg >> 3 & 3]}</span>` +
+    `<span class="chip">0x${cfg.toString(16).padStart(4, "0")}</span>`;
+}
+async function getRun(id) {
+  if (cache[id] && cache[id].stats) return cache[id];
+  const r = await (await fetch("/api/run/" + id)).json();
+  r.frames.forEach(f => f.b = b64(f.bits)); r.rows.forEach(x => x.b = b64(x.data)); r.mrows.forEach(x => x.b = b64(x.data));
+  r.frames.sort((a, b) => a.cycle - b.cycle);
+  cache[id] = r; return r;
+}
+
+// ---------- drawing ----------
+const C0 = [79, 216, 203], C1 = [255, 173, 94];
+function canvasSize(prog) { return prog === "gol" ? [384, 384] : prog === "matmul" ? [384, 384] : [384, 288]; }
+function golOwner(r, n) { if (n < 2) return 0; return r >= 1 + Math.floor(62 / 2) ? 1 : 0; }
+function draw(cv, run, t) {
+  const [w, h] = canvasSize(run.program);
+  if (cv.width !== w || cv.height !== h) { cv.width = w; cv.height = h; }
+  const g = cv.getContext("2d"), img = g.createImageData(w, h), px = img.data;
+  for (let i = 0; i < px.length; i += 4) { px[i] = 2; px[i + 1] = 8; px[i + 2] = 20; px[i + 3] = 255; }
+  const put = (x, y, s, rgb, k) => {
+    for (let dy = 0; dy < s; dy++) for (let dx = 0; dx < s; dx++) {
+      const o = ((y * s + dy) * w + x * s + dx) * 4;
+      px[o] = 2 + (rgb[0] - 2) * k; px[o + 1] = 8 + (rgb[1] - 8) * k; px[o + 2] = 20 + (rgb[2] - 20) * k;
+    }
+  };
+  let done = 0;
+  if (run.program === "gol") {
+    let f = null;
+    for (const fr of run.frames) { if (fr.cycle <= t) f = fr; else break; }
+    if (f) {
+      for (let i = 0; i < 4096; i++) if (f.b[i >> 3] >> (i & 7) & 1) {
+        const r = i >> 6, c = i & 63; put(c, r, 6, golOwner(r, run.ncores) ? C1 : C0, 1);
+      }
+      done = f.gen / 400;
+    }
+  } else if (run.program === "matmul") {
+    let lo = 255, hi = 0;                                 // contrast from this image's own range
+    for (const m of run.mrows) for (const v of m.b) { lo = Math.min(lo, v); hi = Math.max(hi, v); }
+    const span = Math.max(1, hi - lo);
+    for (const m of run.mrows) if (m.cycle <= t) {
+      done++; for (let j = 0; j < 32; j++) put(j, m.row, 12, m.core ? C1 : C0, 0.12 + 0.88 * (m.b[j] - lo) / span);
+    }
+    done /= 32;
+  } else {
+    for (const m of run.rows) if (m.cycle <= t) {
+      done++; for (let c = 0; c < 192; c++) {
+        const n = m.b[c]; put(c, m.row, 2, m.core ? C1 : C0, n >= 64 ? 0.02 : 0.12 + 0.88 * Math.sqrt(n / 64));
+      }
+    }
+    done /= 144;
+  }
+  g.putImageData(img, 0, 0);
+  return Math.min(1, done);
+}
+
+// ---------- live ----------
+async function showLive() {
+  const runs = summary.runs;
+  if (!runs.length) return;
+  const id = summary.live || runs[runs.length - 1].id;
+  const r = await getRun(id);
+  if (!r.stats) delete cache[id];
+  const end = r.stats ? r.stats.cycles : Infinity;
+  if (r.stats && lplay.id !== id) startLivePlay(r);              // a run just finished: replay it
+  else if (!r.stats) { lplay = {id: null, run: null, playing: false}; $("live-play").textContent = "receiving (real time)"; draw($("live-canvas"), r, end); }
+  else if (!lplay.playing) draw($("live-canvas"), r, end);
+  $("live-title").textContent = `${PNAME[r.program]} · ${r.ncores} core${r.ncores > 1 ? "s" : ""} · ${r.source}`;
+  chips(r.config, r.program, $("live-chips"));
+  if (!r.stats) { $("live-time").textContent = "running…"; $("live-sub").textContent = ""; $("live-kv").innerHTML = ""; return; }
+  const s = r.stats, cyc = s.cycles;
+  if (!lplay.playing) $("live-time").textContent = fmtT(cyc);
+  $("live-sub").innerHTML = `${fmtC(cyc)} cycles at 50 MHz · checksum ${s.checksum.toString(16).padStart(8, "0")} ` +
+    (r.ok ? `<span class="ok">✓ matches golden</span>` : `<span class="bad">✗ expected ${(r.golden || 0).toString(16)}</span>`);
+  let kv = `<div class="h"></div><div class="h c0">core 0</div><div class="h c1">core 1</div>`;
+  const row = (name, f) => kv += `<div class="h">${name}</div>` + [0, 1].map(k => `<div class="${k ? "c1" : "c0"}">${k < r.ncores ? f(s.cores[k]) : "–"}</div>`).join("");
+  row("instructions", c => fmtC(c.instret));
+  row("CPI", c => c.instret ? (cyc / c.instret).toFixed(2) : "–");
+  row("D-cache hits", c => fmtC(c.dhit));
+  row("D-cache misses", c => fmtC(c.dmiss));
+  row("D hit rate", c => pct(c.dhit, c.dhit + c.dmiss));
+  row("I hit rate", c => pct(c.ihit, c.ihit + c.imiss));
+  row("arbiter wait", c => fmtC(c.arbwait) + " (" + pct(c.arbwait, cyc) + ")");
+  row("barrier wait", c => fmtC(c.barwait));
+  $("live-kv").innerHTML = kv;
+  $("live-note").textContent = r.source === "sim" ? "Simulated board: exact results, cycle counts from rv32sim's approximate timing model." : r.source === "rtl" ? "RTL simulation (xsim): the hardware design's cycle counts in simulation, not a board measurement." : "Measured on the FPGA.";
+}
+
+// ---------- runs table ----------
+function renderRuns() {
+  const tb = $("runs-body");
+  tb.innerHTML = summary.runs.slice().reverse().map(r => {
+    const c0 = r.cores && r.cores[0];
+    return `<tr><td><input type="checkbox" data-id="${r.id}" ${selected.has(r.id) ? "checked" : ""}></td>
+      <td>${r.id}</td><td>${r.source}</td><td>${PNAME[r.program]}</td><td>0x${r.config.toString(16).padStart(4, "0")}</td>
+      <td>${r.ncores}</td><td>${fmtC(r.cycles)}</td><td>${fmtT(r.cycles)}</td>
+      <td>${c0 && c0.instret ? (r.cycles / c0.instret).toFixed(2) : "–"}</td><td>${c0 ? pct(c0.dhit, c0.dhit + c0.dmiss) : "–"}</td>
+      <td>${c0 ? pct(c0.arbwait, r.cycles) : "–"}</td>
+      <td>${!r.done ? "running" : r.ok ? '<span class="ok">✓</span>' : '<span class="bad">✗</span>'}</td>
+      <td>${r.done ? `<button class="ghost" data-del="${r.id}" style="padding:3px 8px">delete</button>` : ""}</td></tr>`;
+  }).join("");
+}
+$("runs-body").addEventListener("change", e => {
+  const id = e.target.dataset.id; if (!id) return;
+  e.target.checked ? selected.add(id) : selected.delete(id); buildCompare();
+});
+$("runs-body").addEventListener("click", async e => {
+  const id = e.target.dataset.del; if (!id) return;
+  await fetch("/api/delete", {method: "POST", body: JSON.stringify({id})}); selected.delete(id); delete cache[id];
+});
+
+// ---------- compare ----------
+const SLOWS = [1, 10, 100, 1000, 10000, 100000];
+let cmp = {cards: [], playing: false, t0: 0, scale: 1};
+function autoSelect() {
+  const prog = $("cmp-prog").value, best = {};
+  for (const r of summary.runs) if (r.done && r.program === prog) best[r.config + r.source] = r.id;
+  selected = new Set(Object.values(best).slice(-6)); renderRuns(); buildCompare();
+}
+async function buildCompare() {
+  const runs = await Promise.all([...selected].map(getRun));
+  runs.sort((a, b) => b.stats.cycles - a.stats.cycles);
+  $("cmp-grid").innerHTML = runs.map((r, i) => `<div class="card cmp" id="cmp${i}">
+     <div class="hd">${PNAME[r.program]} · ${r.ncores} core${r.ncores > 1 ? "s" : ""} <span class="muted">· ${r.source}</span></div>
+     <div class="chips" id="cmpc${i}"></div><canvas id="cmpv${i}"></canvas>
+     <div class="t"><span id="cmpt${i}">–</span><span class="badge" id="cmpb${i}"></span></div><div class="bar"><i id="cmpp${i}"></i></div></div>`).join("");
+  runs.forEach((r, i) => { chips(r.config, r.program, $("cmpc" + i), true); draw($("cmpv" + i), r, r.stats.cycles); $("cmpt" + i).textContent = fmtT(r.stats.cycles); });
+  cmp.cards = runs;
+  const slowest = runs.length ? runs[0].stats.cycles : 1;
+  runs.forEach((r, i) => { if (runs.length > 1) $("cmpb" + i).textContent = (slowest / r.stats.cycles).toFixed(2) + "× vs slowest"; });
+  setSlow();
+}
+function slowFactor() {
+  const v = +$("slow").value;
+  if (v > 0) return SLOWS[v - 1];
+  const slowest = cmp.cards.length ? cmp.cards[0].stats.cycles / CLK : 1;
+  return Math.max(1, 8 / slowest);                       // auto: the slowest card takes about 8 s
+}
+function setSlow() {
+  const f = slowFactor();
+  $("slow-l").textContent = (+$("slow").value ? "" : "auto: ") + (f <= 1 ? "real time, as fast as the board" : "×" + Math.round(f).toLocaleString() + " slower than the board");
+}
+$("slow").addEventListener("input", setSlow);
+$("play").addEventListener("click", () => {
+  if (!cmp.cards.length) { autoSelect(); return; }
+  cmp.playing = true; cmp.t0 = performance.now(); cmp.scale = slowFactor();
+  cmp.cards.forEach((_, i) => $("cmp" + i).classList.remove("win"));
+});
+$("autosel").addEventListener("click", autoSelect);
+function frame(now) {
+  if (cmp.playing) {
+    const tc = (now - cmp.t0) / 1000 / cmp.scale * CLK;           // board cycles elapsed
+    let all = true;
+    const fastest = Math.min(...cmp.cards.map(r => r.stats.cycles));
+    cmp.cards.forEach((r, i) => {
+      const end = r.stats.cycles, t = Math.min(tc, end);
+      draw($("cmpv" + i), r, t);
+      $("cmpt" + i).textContent = fmtT(t);
+      $("cmpp" + i).style.width = (100 * t / end) + "%";
+      if (tc >= end && end === fastest) $("cmp" + i).classList.add("win");
+      if (tc < end) all = false;
+    });
+    if (all) cmp.playing = false;
+  }
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+
+// ---------- simulate ----------
+function renderSwitches() {
+  $("sw").innerHTML = SWN.map((n, i) => `<div><button data-b="${15 - i}" class="${swcfg >> (15 - i) & 1 ? "on" : ""}"></button>SW${15 - i}<br>${SWN[15 - i]}</div>`).join("");
+  chips(swcfg, PROGS[swcfg >> 5 & 3], $("sw-chips"));
+}
+$("sw").addEventListener("click", e => { const b = e.target.dataset.b; if (b == null) return; swcfg ^= 1 << b; renderSwitches(); });
+async function sim(configs) { await fetch("/api/sim", {method: "POST", body: JSON.stringify({configs})}); }
+$("sim-one").addEventListener("click", () => sim([swcfg]));
+$("sim-cores").addEventListener("click", () => sim([0, 1, 2, 3].flatMap(p => [(swcfg & ~0x64) | p << 5, (swcfg & ~0x64) | p << 5 | 4])));
+$("sim-ablate").addEventListener("click", () => {
+  const base = (swcfg & 0x60) | 0x0097, v = [base];
+  v.push(base & ~1, base & ~2, base & ~4, base & ~0x80, base & ~0x18, base | 0x18, base & 0x60);
+  sim(v);
+});
+
+// ---------- demo guide ----------
+const GUIDE = [
+  ["The story", "Game of Life, 1 core, D-cache off", 0x0091, "193,211 k cycles (3.86 s)", "Every data access goes to slow memory."],
+  ["The story", "Game of Life, 1 core, D-cache on", 0x0093, "70,337 k (1.41 s): 2.75x faster", "Same program, same checksum, only the cache switch changed."],
+  ["The story", "Game of Life, 2 cores", 0x0097, "38,660 k (0.77 s): 1.82x over 1 core", "The second core takes half the rows; the shared cache and the arbiter cost some of the 2x."],
+  ["The story", "MatMul 32x32, 1 core", 0x00F3, "535 k (10.7 ms)", "i-k-j order, so B and C stream through the cache."],
+  ["The story", "MatMul, 2 cores", 0x00F7, "297 k (5.9 ms): 1.80x", ""],
+  ["The story", "Mandelbrot halves, 1 core", 0x00B3, "12,224 k (244 ms)", "One core draws the whole picture."],
+  ["The story", "Mandelbrot halves, 2 cores", 0x00B7, "6,209 k (124 ms): 1.97x", "Each core gets one half of the picture."],
+  ["The story", "Mandelbrot interleaved, 1 core", 0x00D3, "12,224 k (244 ms)", ""],
+  ["The story", "Mandelbrot interleaved, 2 cores", 0x00D7, "6,131 k (123 ms): 1.99x", "Alternate rows balance the work."],
+  ["One feature changed (Game of Life, 1 core)", "Forwarding off", 0x0092, "", "Every distance-1 dependence now costs a stall."],
+  ["One feature changed (Game of Life, 1 core)", "I-cache off", 0x0013, "", "Every fetch goes to slow memory."],
+  ["One feature changed (Game of Life, 1 core)", "Both caches off", 0x0011, "", ""],
+  ["One feature changed (Game of Life, 1 core)", "Memory latency L = 5", 0x0083, "", ""],
+  ["One feature changed (Game of Life, 1 core)", "Memory latency L = 10", 0x009B, "", "Slower memory: every miss costs more."],
+  ["Two cores without the D-cache (fallback)", "Mandelbrot halves, 2 cores, DC off", 0x00B5, "", ""],
+  ["Two cores without the D-cache (fallback)", "Mandelbrot interleaved, 2 cores, DC off", 0x00D5, "", ""],
+];
+function swStrip(cfg) {
+  let h = '<span style="font:13px var(--mono);letter-spacing:1px">';
+  for (let b = 15; b >= 0; b--) h += `<span class="${cfg >> b & 1 ? "c0" : "muted"}">${cfg >> b & 1 ? "&#9646;" : "&#9647;"}</span>` + (b % 4 === 0 && b ? " " : "");
+  return h + "</span>";
+}
+function renderGuide() {
+  let grp = "", n = 0;
+  $("guide-body").innerHTML = GUIDE.map(([g, what, cfg, res, say]) => {
+    const up = []; for (let b = 0; b < 16; b++) if (cfg >> b & 1) up.push("SW" + b);
+    const head = g !== grp ? `<tr><td colspan="8" style="color:var(--accent);font:700 12px var(--sans);padding-top:14px">${g}</td></tr>` : "";
+    grp = g; n++;
+    return head + `<tr><td>${n}</td><td>${what}</td><td>${swStrip(cfg)}</td><td>${up.join(" ")}</td>
+      <td>0x${cfg.toString(16).padStart(4, "0").toUpperCase()}</td><td>${res ? res + ' <span class="muted">board</span>' : '<span class="muted">see the Live tab</span>'}</td>
+      <td style="white-space:normal;min-width:220px">${say}</td>
+      <td><button class="ghost" data-sim="${cfg}" style="padding:3px 8px">simulate</button></td></tr>`;
+  }).join("");
+}
+$("guide-body").addEventListener("click", e => { const c = e.target.dataset.sim; if (c != null) sim([+c]); });
+
+// ---------- live playback ----------
+let lplay = {id: null, run: null, playing: false, t0: 0, scale: 1};
+function liveScale(r) {
+  const secs = +$("live-speed").value;
+  return secs ? Math.max(1, secs / (r.stats.cycles / CLK)) : 1;
+}
+function startLivePlay(r) {
+  lplay = {id: r.id, run: r, playing: +$("live-speed").value > 0, t0: performance.now(), scale: liveScale(r)};
+  if (lplay.playing) $("live-play").textContent = `replaying ${Math.round(lplay.scale).toLocaleString()}x slower than the board`;
+  else { $("live-play").textContent = "real time"; draw($("live-canvas"), r, r.stats.cycles); $("live-time").textContent = fmtT(r.stats.cycles); }
+}
+$("live-replay").addEventListener("click", () => { if (lplay.run) startLivePlay(lplay.run); });
+$("live-speed").addEventListener("change", () => { if (lplay.run) startLivePlay(lplay.run); });
+function liveFrame(now) {
+  if (lplay.playing) {
+    const r = lplay.run, end = r.stats.cycles;
+    const t = Math.min(end, (now - lplay.t0) / 1000 / lplay.scale * CLK);
+    draw($("live-canvas"), r, t);
+    $("live-time").textContent = fmtT(t);
+    if (t >= end) { lplay.playing = false; $("live-play").textContent = `replayed ${Math.round(lplay.scale).toLocaleString()}x slower than the board; Replay to watch again`; }
+  }
+  requestAnimationFrame(liveFrame);
+}
+requestAnimationFrame(liveFrame);
+
+// ---------- tabs + polling ----------
+document.querySelectorAll("nav button").forEach(b => b.addEventListener("click", () => {
+  document.querySelectorAll("nav button").forEach(x => x.classList.toggle("on", x === b));
+  document.querySelectorAll("main > section").forEach(s => s.classList.toggle("hidden", s.id !== "tab-" + b.dataset.tab));
+}));
+let progList = "";
+$("cmp-prog").addEventListener("change", autoSelect);          // a new program: show its runs
+async function poll() {
+  try {
+    const s = await (await fetch("/api/runs")).json();
+    $("status").textContent = s.status;
+    if (s.version !== summary.version || s.live) {
+      summary = s;
+      const progs = [...new Set(s.runs.map(r => r.program))].sort();
+      if (progs.join() !== progList) {                       // rebuild only when the list changes,
+        progList = progs.join();                              // so an open or chosen entry is kept
+        const cur = $("cmp-prog").value;
+        $("cmp-prog").innerHTML = progs.map(p => `<option value="${p}" ${p === cur ? "selected" : ""}>${PNAME[p]}</option>`).join("");
+      }
+      renderRuns(); await showLive();
+    }
+  } catch (e) { $("status").textContent = "dashboard server not reachable"; }
+  setTimeout(poll, 400);
+}
+setSlow(); renderSwitches(); renderGuide(); poll();
+</script>
+</body>
+</html>
