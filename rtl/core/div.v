@@ -30,6 +30,8 @@ module div (
     reg        is_rem;
     reg        neg_quotient;
     reg        neg_remainder;
+    reg        special;          // division by zero or INT_MIN / -1: fixed result, same 33 cycles
+    reg [31:0] special_res;
 
     assign busy = (state != IDLE);
     assign done = (state == FINISH);
@@ -57,10 +59,15 @@ module div (
             is_rem        <= 1'b0;
             neg_quotient  <= 1'b0;
             neg_remainder <= 1'b0;
+            special       <= 1'b0;
+            special_res   <= 32'd0;
         end else begin
             case (state)
-                IDLE: begin
+                IDLE, FINISH: begin
+                    // the done cycle (FINISH) may start the next division (back-to-back operation)
+                    state <= IDLE;
                     if (start) begin
+                        special <= 1'b0;
                         is_rem <= (funct3 == REM || funct3 == REMU);
 
                         // -------------------------------------------------
@@ -69,13 +76,17 @@ module div (
                         if (in_b == 32'd0) begin
                             // Case 1: Division by Zero
                             // DIV/DIVU -> -1 (32'hFFFFFFFF); REM/REMU -> in_a
-                            result <= (funct3 == REM || funct3 == REMU) ? in_a : 32'hFFFFFFFF;
-                            state  <= FINISH;
+                             special     <= 1'b1;
+                            special_res <= (funct3 == REM || funct3 == REMU) ? in_a : 32'hFFFFFFFF;
+                            count       <= 6'd32;
+                            state       <= COMPUTE;
                         end else if ((funct3 == DIV || funct3 == REM) && 
                                      (in_a == 32'h80000000) && (in_b == 32'hFFFFFFFF)) begin
                             // Case 2: Signed Overflow (INT_MIN / -1)
-                            result <= (funct3 == REM) ? 32'd0 : 32'h80000000;
-                            state  <= FINISH;
+                            special     <= 1'b1;
+                            special_res <= (funct3 == REM) ? 32'd0 : 32'h80000000;
+                            count       <= 6'd32;
+                            state       <= COMPUTE;
                         end else begin
                             // Normal Division Setup
                             if (funct3 == DIV || funct3 == REM) begin
@@ -102,14 +113,9 @@ module div (
 
                     // When transitioning to FINISH on the last cycle, register the final result
                     if (count == 6'd1) begin
-                        result <= is_rem ? final_remainder : final_quotient;
+                        result <= special ? special_res : (is_rem ? final_remainder : final_quotient);
                         state  <= FINISH;
                     end
-                end
-
-                FINISH: begin
-                    // result is already valid and stable here when done == 1
-                    state <= IDLE;
                 end
 
                 default: state <= IDLE;
