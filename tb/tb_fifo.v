@@ -582,10 +582,13 @@ module tb_fifo;
         // ---------------------------------------------------------------------
         $display("\n========================================================");
         $display("checks performed : %0d", checks);
-        if (test_errors == 0)
+        if (test_errors == 0) begin
             $display(">>> ALL FIFO TESTS PASSED <<<");
-        else
+            $display("PASS fifo (%0d checks)", checks);
+        end else begin
             $display(">>> FAILED: %0d error(s) <<<", test_errors);
+            $display("FAIL fifo: %0d error(s)", test_errors);
+        end
         $display("========================================================\n");
         $finish;
     end
