@@ -1,224 +1,115 @@
 `timescale 1ns / 1ps
 `default_nettype none
-
-// tb_icache - Unified Self-Checking Testbench
-// Verifies the 128-bit memory interface, FIFO replacement, bypass mode, 
-// and pipeline handshaking (fetch_accept / fetch_ready) without requiring 
-// external Python scripts or hex files.
+// tb_icache - driven by tb/icache/run.py (imem.hex and fetch.mem in the run
+// directory). icache + mem_delay + imem_bram. A pipelined master: each fetch is presented in the
+// same cycle as the previous fetch_ready (as the core does), so a run of hits costs one cycle each. For IC = 1 and IC = 0 and every L: the
+// cycle of each fetch_ready (the request's first cycle = 1) equals fetch.mem's, the word equals
+// imem.hex, ic_hit / ic_miss equal the Python hit/miss sequence (none with IC = 0), and no
+// fetch_ready comes without a request. Prints one PASS/FAIL line.
 
 module tb_icache;
 
-    parameter LAT = 5;       // Main memory latency in cycles
+    reg         clk = 1'b0, rst = 1'b1;
+    always #10 clk = ~clk;
 
-    reg         clk = 0, rst = 1, ic_en = 1;
-    reg         fetch_req = 0;
-    reg  [31:0] fetch_addr = 0;
-    
-    wire        fetch_accept, fetch_ready, fetch_stall;
+    reg         ic_en = 1'b1;
+    reg  [1:0]  lat = 2'd0;
+    reg         fetch_req = 1'b0;
+    reg  [31:0] fetch_addr = 32'd0;
+    wire        fetch_ready, ic_hit, ic_miss;
     wire [31:0] instr;
-    wire        mem_req, mem_ready;
-    wire [31:0] mem_addr;
-    wire [127:0] mem_rdata;
-    wire        ic_hit, ic_miss;
+    wire        m_start, m_we, m_nwords, m_rvalid, m_wready, m_done, b_we;
+    wire [29:0] m_addr, b_addr;
+    wire [31:0] m_wdata, m_rdata, b_wdata, b_rdata;
+    wire [3:0]  m_be, b_be;
 
-    // ---------------- DUT Instantiation ----------------
-    icache #(.HAS_ICACHE(1)) dut (
-        .clk(clk), .rst(rst), .ic_en(ic_en),
-        .fetch_req(fetch_req), .fetch_addr(fetch_addr),
-        .fetch_accept(fetch_accept), .fetch_ready(fetch_ready),
-        .fetch_stall(fetch_stall), .instr(instr),
-        .mem_req(mem_req), .mem_addr(mem_addr),
-        .mem_rdata(mem_rdata), .mem_ready(mem_ready),
-        .ic_hit(ic_hit), .ic_miss(ic_miss)
-    );
+    icache dut (.clk(clk), .rst(rst), .ic_en(ic_en), .fetch_req(fetch_req), .fetch_addr(fetch_addr),
+                .fetch_ready(fetch_ready), .instr(instr),
+                .m_start(m_start), .m_we(m_we), .m_addr(m_addr), .m_nwords(m_nwords),
+                .m_wdata(m_wdata), .m_be(m_be), .m_rvalid(m_rvalid), .m_rdata(m_rdata),
+                .m_wready(m_wready), .m_done(m_done), .ic_hit(ic_hit), .ic_miss(ic_miss));
+    mem_delay u_md (.clk(clk), .rst(rst), .lat(lat), .start(m_start), .we(m_we), .addr(m_addr),
+                    .nwords(m_nwords), .wdata(m_wdata), .be(m_be), .rvalid(m_rvalid), .rdata(m_rdata),
+                    .wready(m_wready), .done(m_done), .m_addr(b_addr), .m_we(b_we), .m_be(b_be),
+                    .m_wdata(b_wdata), .m_rdata(b_rdata));
+    imem_bram #(.INIT_FILE("imem.hex")) u_imem (.clk(clk), .addr_a(b_addr[11:0]), .rdata_a(b_rdata),
+                                               .addr_b(12'd0), .rdata_b());
 
-    always #5 clk = ~clk;
+    localparam MAXF = 8192;
+    reg  [31:0] f_addr [0:MAXF-1];
+    reg         f_hit  [0:MAXF-1];
+    integer     f_c1 [0:3][0:MAXF-1];
+    integer     f_c0 [0:3][0:MAXF-1];
+    reg  [31:0] imem [0:4095];
+    integer     nf = 0, fd, r, hit_i, c5, c6, c8, c10, n5, n6, n8, n10;
+    reg  [31:0] a;
 
-    // ---------------- Backing Memory Model (128-bit native) ----------------
-    // Generates deterministic pseudo-random instructions based on address
-    function [31:0] word_val(input [31:0] a);
-        word_val = {a[31:2], 2'b00} * 32'h9E3779B1 + 32'h1234_5678;
-    endfunction
-
-    reg [7:0] mem_cnt = 0;
-    reg       mem_ready_reg = 0;
-    
-    // Pack 4 words into the 128-bit line for the new icache interface
-    assign mem_rdata = {word_val(mem_addr | 32'hC), word_val(mem_addr | 32'h8), 
-                        word_val(mem_addr | 32'h4), word_val(mem_addr)};
-    assign mem_ready = mem_ready_reg;
-
-    integer mem_txn = 0;
-    always @(posedge clk) begin
-        if (rst) begin
-            mem_cnt <= 0;
-            mem_ready_reg <= 0;
-        end else begin
-            if (mem_req && !mem_ready_reg) begin
-                if (mem_cnt == LAT - 1) begin
-                    mem_ready_reg <= 1;
-                    mem_cnt <= 0;
-                    mem_txn <= mem_txn + 1;
-                end else begin
-                    mem_cnt <= mem_cnt + 1;
-                end
-            end else begin
-                mem_ready_reg <= 0;
-            end
-        end
-    end
-
-    // ---------------- Fetch Driver (Core Pipeline Model) ----------------
-    reg [31:0] seq [0:4095];
-    integer    seq_len = 0, seq_idx = 0;
-    reg        run_seq = 0;
-
-    always @(*) begin
-        fetch_req  = run_seq && (seq_idx < seq_len);
-        fetch_addr = (seq_idx < seq_len) ? seq[seq_idx] : 32'd0;
-    end
-
-    // ---------------- Checker & Performance Counters ----------------
-    reg [31:0] pend_addr;
-    reg        pend_valid = 0;
-    integer    n_resp = 0, n_hit = 0, n_miss = 0, n_stall_cycles = 0, errors = 0;
-
-    always @(posedge clk) if (!rst) begin
-        if (fetch_ready && pend_valid) begin
-            n_resp = n_resp + 1;
-            if (instr !== word_val(pend_addr)) begin
-                errors = errors + 1;
-                $display("[%0t] DATA ERROR addr=%h got=%h exp=%h", $time, pend_addr, instr, word_val(pend_addr));
-            end
-        end
-        if (ic_hit)  n_hit  = n_hit  + 1;
-        if (ic_miss) n_miss = n_miss + 1;
-        if (fetch_stall) n_stall_cycles = n_stall_cycles + 1;
-        
-        if (fetch_accept && fetch_req) begin
-            pend_addr  <= fetch_addr;
-            pend_valid <= 1'b1;
-            seq_idx    = seq_idx + 1;
-        end else if (fetch_accept) begin
-            pend_valid <= 1'b0;
-        end
-    end
-
-    // ---------------- Reference Model (2-way FIFO) ----------------
-    reg [21:0] m_tag [0:1][0:63];
-    reg        m_val [0:1][0:63];
-    reg        m_ptr [0:63];
-    integer    m_hits, m_misses, mi;
-
-    task model_reset;
+    integer errors = 0, checks = 0, total = 0, mode, li, k, c, want_c, nh, nm, cycles_run;
+    task fail(input [8*40-1:0] what, input [31:0] got, input [31:0] want);
         begin
-            m_hits = 0; m_misses = 0;
-            for (mi = 0; mi < 64; mi = mi + 1) begin
-                m_val[0][mi] = 0; m_val[1][mi] = 0; m_ptr[mi] = 0;
-            end
+            errors = errors + 1;
+            if (errors <= 15) $display("%0s: got %0h want %0h (IC %0d, L code %0d, fetch %0d at %08h)",
+                                       what, got, want, ic_en, lat, k, f_addr[k]);
         end
     endtask
-
-    task model_access(input [31:0] a);
-        reg [5:0] s; reg [21:0] t; reg w;
-        begin
-            s = a[9:4]; t = a[31:10];
-            if (m_val[0][s] && m_tag[0][s] == t) m_hits = m_hits + 1;
-            else if (m_val[1][s] && m_tag[1][s] == t) m_hits = m_hits + 1;
-            else begin
-                m_misses = m_misses + 1;
-                w = !m_val[0][s] ? 1'b0 : !m_val[1][s] ? 1'b1 : m_ptr[s];
-                m_tag[w][s] = t; m_val[w][s] = 1'b1; m_ptr[s] = ~w;
-            end
-        end
-    endtask
-
-    // ---------------- Test Tasks ----------------
-    task do_reset;
-        begin
-            rst = 1; run_seq = 0; repeat (3) @(posedge clk); #1; rst = 0; @(posedge clk); #1;
-            n_resp = 0; n_hit = 0; n_miss = 0; n_stall_cycles = 0; seq_len = 0; seq_idx = 0;
-            pend_valid = 0; mem_txn = 0; model_reset;
-        end
-    endtask
-
-    task run_until_done;
-        integer guard;
-        begin
-            run_seq = 1; guard = 0;
-            while ((seq_idx < seq_len || fetch_stall || pend_valid) && guard < 100000) begin
-                @(posedge clk); #1; guard = guard + 1;
-            end
-            repeat (4) begin @(posedge clk); #1; end
-            run_seq = 0;
-            if (guard >= 100000) begin errors = errors + 1; $display("TIMEOUT"); end
-        end
-    endtask
-
-    task add(input [31:0] a);
-        begin seq[seq_len] = a; seq_len = seq_len + 1; end
-    endtask
-
-    task expect_counts(input integer eh, input integer em, input [255:0] name);
-        begin
-            if (n_hit !== eh || n_miss !== em) begin
-                errors = errors + 1;
-                $display("FAIL %0s: hits=%0d (exp %0d) misses=%0d (exp %0d)", name, n_hit, eh, n_miss, em);
-            end else $display("PASS %0s: hits=%0d misses=%0d stalls=%0d", name, n_hit, n_miss, n_stall_cycles);
-        end
-    endtask
-
-    // ---------------- Execution ----------------
-    integer k, seed, r;
 
     initial begin
-        do_reset;
-
-        // T1: Cold miss followed by 3 line hits (0 stalls for hits)
-        add(32'h0000_0000); add(32'h0000_0004); add(32'h0000_0008); add(32'h0000_000C);
-        run_until_done;
-        expect_counts(3, 1, "T1 cold miss + line hits");
-        if (mem_txn !== 1) begin errors = errors + 1; $display("FAIL T1: expected 1 memory txn, got %0d", mem_txn); end
-
-        // T2: Sequential hits across lines
-        do_reset;
-        for (k = 0; k < 16; k = k + 1) add(k * 4);
-        run_until_done;
-        expect_counts(12, 4, "T2 sequential 4 lines");
-
-        // T3: FIFO Eviction check (A, B, A, B, A, C -> miss under FIFO)
-        do_reset;
-        add(32'h000); add(32'h400); add(32'h000); add(32'h400);
-        add(32'h000); add(32'h800); add(32'h000);
-        run_until_done;
-        expect_counts(3, 4, "T3 FIFO eviction");
-
-        // T4: Bypass mode (ic_en = 0)
-        do_reset; ic_en = 0;
-        add(32'h000); add(32'h004); add(32'h000); add(32'h010);
-        run_until_done;
-        if (n_hit !== 0 || n_miss !== 0 || mem_txn !== 4) begin
-            errors = errors + 1; $display("FAIL T4 bypass: hit=%0d miss=%0d txn=%0d", n_hit, n_miss, mem_txn);
-        end else $display("PASS T4 bypass: no pulses, 4 transactions");
-        ic_en = 1;
-
-        // T5: Fuzz testing against Reference Model
-        do_reset; seed = 7;
-        for (k = 0; k < 3000; k = k + 1) begin
-            r = $random(seed);
-            add({18'd0, r[13:8] % 6'd5, 4'd0} | ({r[20:16] % 5'd4, 10'd0} << 0) | ({r[3:2], 2'b00}));
+        $readmemh("imem.hex", imem);
+        fd = $fopen("fetch.mem", "r");
+        while (!$feof(fd)) begin
+            r = $fscanf(fd, "%h %d %d %d %d %d %d %d %d %d\n", a, hit_i, c5, c6, c8, c10, n5, n6, n8, n10);
+            if (r == 10) begin
+                f_addr[nf] = a; f_hit[nf] = hit_i;
+                f_c1[0][nf] = c5; f_c1[1][nf] = c6; f_c1[2][nf] = c8; f_c1[3][nf] = c10;
+                f_c0[0][nf] = n5; f_c0[1][nf] = n6; f_c0[2][nf] = n8; f_c0[3][nf] = n10;
+                nf = nf + 1;
+            end
         end
-        for (k = 0; k < seq_len; k = k + 1) model_access(seq[k]);
-        run_until_done;
-        if (n_resp !== seq_len) begin errors = errors + 1; $display("FAIL T5: %0d resp for %0d fetches", n_resp, seq_len); end
-        expect_counts(m_hits, m_misses, "T5 random vs model");
-
-        $display("----------------------------------------");
-        if (errors == 0) $display("ALL TESTS PASSED (%0d fetches simulated)", seq_len + 16 + 7 + 4);
-        else             $display("%0d ERRORS FOUND", errors);
+        $fclose(fd);
+        for (mode = 1; mode >= 0; mode = mode - 1)
+            for (li = 0; li < 4; li = li + 1) begin
+                @(negedge clk);
+                rst = 1'b1; ic_en = mode; lat = li; fetch_req = 1'b0;
+                @(negedge clk); @(negedge clk); rst = 1'b0;
+                // drive just after a rising edge, so a new fetch shares the cycle of the last ready
+                @(posedge clk); #1;
+                fetch_req = 1'b1; fetch_addr = f_addr[0];
+                k = 0; c = 1; nh = 0; nm = 0; cycles_run = 0;
+                while (k < nf && cycles_run < 2000000) begin
+                    // this cycle: count pulses, look for the answer to fetch k
+                    if (ic_hit) nh = nh + 1;
+                    if (ic_miss) nm = nm + 1;
+                    if (fetch_ready) begin
+                        checks = checks + 3; total = total + 1;
+                        want_c = mode ? f_c1[li][k] : f_c0[li][k];
+                        if (c != want_c) fail("ready cycle", c, want_c);
+                        if (instr !== imem[f_addr[k][13:2]]) fail("instruction", instr, imem[f_addr[k][13:2]]);
+                        if (mode && (nh != f_hit[k] || nm != 1 - f_hit[k])) fail("hit/miss pulse", {nh[3:0], nm[3:0]}, f_hit[k] ? 8'h10 : 8'h01);
+                        if (!mode && (nh != 0 || nm != 0)) fail("pulse with IC = 0", {nh[3:0], nm[3:0]}, 0);
+                        k = k + 1; c = 1; nh = 0; nm = 0;
+                        if (k < nf) fetch_addr = f_addr[k];        // the next fetch, this same cycle
+                        else fetch_req = 1'b0;
+                    end
+                    @(posedge clk); #1;
+                    c = c + 1; cycles_run = cycles_run + 1;
+                end
+                checks = checks + 1;
+                if (k != nf) fail("fetches answered", k, nf);
+                // no answer without a request
+                repeat (30) begin
+                    checks = checks + 1;
+                    if (fetch_ready) fail("fetch_ready without a request", 1, 0);
+                    @(posedge clk); #1;
+                end
+            end
+        if (errors == 0 && total == 8 * nf)
+            $display("PASS icache (%0d fetches x IC 1/0 x 4 L = %0d answers; hit/miss = Python, exact cycles, every word)",
+                     nf, total);
+        else
+            $display("FAIL icache: %0d errors, %0d answers of %0d", errors, total, 8 * nf);
         $finish;
     end
 
-    initial begin #50_000_000; $display("GLOBAL TIMEOUT"); $finish; end
 endmodule
+
 `default_nettype wire
