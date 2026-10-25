@@ -32,7 +32,7 @@ instructions can be wrong.
 | 14 | 8 | `lhu` upper half = 0x80FF | half zero extension | stale2 |
 | 15 | 8 | `sb, sb, sh` then `lw` = 0x1234CDAB | store byte enables and lane placement (+ D-cache byte write) | stale2 |
 | 16 | 9 | `mul` then `add` on the product = 2,000,000 | mul_unit, EX hold, forward of the MUL result | - |
-| 17 | 9 | `divu` then `addi` = 142,858 | div_unit, EX hold for up to 34 cycles | stale2 |
+| 17 | 9 | `divu` then `addi` = 142,858 | div_unit, EX hold for 34 cycles | stale2 |
 | 18 | 9 | `rem` = 1 | div_unit remainder path | - |
 | 19 | 10 | taken `beq`: the 2 instructions behind it do not execute (t5 = 0) | 2-instruction squash | nosquash |
 | 20 | 11 | not-taken `bne`: fall-through executes (t5 = 1) | no squash when not taken | - |
@@ -59,7 +59,7 @@ instructions can be wrong.
 | Check | RTL path |
 | --- | --- |
 | 1. five lines 1 KB apart (one set), read and rewritten 200 rounds | dirty-victim write-back before refill; replacement with 5 lines in a 4-way set |
-| 2. `sb, sb, sh` into a line, evicted by 4 lines of the same set, reloaded | byte enables in a cached line; merged word survives eviction (WB) or reaches memory (WT) |
+| 2. `sb, sb, sh` into a line, evicted by 4 lines of the same set, reloaded | byte enables in a cached line; merged word survives eviction and write-back |
 | 2. the 4 evicting lines read back | refill of each victim |
 | 3. 16 KB sequential write then read (4 x the cache) | streaming misses, every line evicted, write-allocate |
 | all with DC = 0 | bypass path (1-word bursts with byte enables) |
