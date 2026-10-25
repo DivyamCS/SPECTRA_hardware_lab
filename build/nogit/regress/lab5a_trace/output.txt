@@ -1,4 +1,0 @@
-toolchain: gcc; t_lab5a: 191 instructions, all RV32I without AUIPC -> tb\lab5a\image
-$ D:\Python 3.11\python.exe F:\02_The_Codes\06_Personal\final\SPECTRA_hardware_lab\tb\lab5a\build_image.py
-$ F:\02_The_Codes\06_Personal\final\SPECTRA_hardware_lab\sim\rv32sim.exe -c 0093 -t F:\02_The_Codes\06_Personal\final\SPECTRA_hardware_lab\build\nogit\lab5a_trace\sim F:\02_The_Codes\06_Personal\final\SPECTRA_hardware_lab\tb\lab5a\image
-FAIL: vivado not on PATH

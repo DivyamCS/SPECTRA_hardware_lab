@@ -1,2 +1,0 @@
-FAIL core: vivado not on PATH
-FAIL core_dc: 1 image batches failed
