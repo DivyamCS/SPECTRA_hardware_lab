@@ -8,7 +8,5 @@ ic_off_2c 0017
 dc_off_1c 0091
 dc_off_2c 0095
 caches_off_2c 0015
-wt_2c 0297
-one_way_2c 0497
 L5_2c 0087
 L10_2c 009f

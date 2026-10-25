@@ -107,7 +107,7 @@ module soc_top #(
     wire [29:0] ma, ba;
     wire [31:0] mwd, mrd, bwd, brd;
     wire [3:0]  mbe, bbe;
-    dcache #(.HAS_DCACHE(HAS_DCACHE)) u_dc (.clk(clk), .rst(rst), .cfg_dc(cfg[1]), .cfg_wpol(cfg[9]), .cfg_ways(cfg[13:10]),
+    dcache #(.HAS_DCACHE(HAS_DCACHE)) u_dc (.clk(clk), .rst(rst), .cfg_dc(cfg[1]),
         .req(dc_req), .we(dc_we), .addr(dc_addr), .wdata(dc_wdata), .be(dc_be), .owner(dc_owner),
         .rdata(dc_rdata), .ready(dc_ready),
         .m_start(ms), .m_we(mwe), .m_addr(ma), .m_nwords(mnw), .m_wdata(mwd), .m_be(mbe),

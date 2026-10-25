@@ -24,16 +24,12 @@ Seven-segment display after a run: cycles in thousands ("Cy 70337"), then per co
 | --- | --- | --- | --- |
 | Game of Life | I-caches | 6.51x | ablation_board.csv: gol_ic_off |
 | Game of Life | D-cache | 4.00x | ablation_board.csv: gol_dc_off |
-| Game of Life | 3 of the 4 D-cache ways | 3.70x | ablation_board.csv: gol_one_way |
 | Game of Life | second core | 1.82x | ablation_board.csv: gol_dual_off |
-| Game of Life | write-back (write-through instead) | 1.26x | ablation_board.csv: gol_write_through |
 | Game of Life | forwarding | 1.25x | ablation_board.csv: gol_fwd_off |
 | Game of Life | everything (1 core, no FWD, no caches) | 15.63x | ablation_board.csv: gol_all_off |
 | MatMul | I-caches | 5.30x | ablation_board.csv: matmul_ic_off |
 | MatMul | D-cache | 3.68x | ablation_board.csv: matmul_dc_off |
-| MatMul | 3 of the 4 D-cache ways | 4.95x | ablation_board.csv: matmul_one_way |
 | MatMul | second core | 1.80x | ablation_board.csv: matmul_dual_off |
-| MatMul | write-back (write-through instead) | 1.96x | ablation_board.csv: matmul_write_through |
 | MatMul | forwarding | 1.06x | ablation_board.csv: matmul_fwd_off |
 | MatMul | everything (1 core, no FWD, no caches) | 11.07x | ablation_board.csv: matmul_all_off |
 

@@ -3,8 +3,8 @@
     python tb/top/run_random.py PROGRAM [COUNT] [SEED]     PROGRAM = matmul | mandel | gol
     python tb/top/run_random.py --board-list FILE           the list for the board
 
-COUNT (default 40) seeded random settings of FWD, DC, DUAL, LAT, IC, WPOL and WAYS (SW0-13
-except PROGRAM, which is fixed by PROGRAM; SW8 is drawn too but reserved, so ignored; Mandelbrot alternates halves / interleaved), the same
+COUNT (default 40) seeded random settings of FWD, DC, DUAL, LAT, and IC (SW0-13
+except PROGRAM, which is fixed by PROGRAM; SW8-SW13 are drawn too but reserved, so ignored; Mandelbrot alternates halves / interleaved), the same
 settings for every program with the same SEED (default 106). Each runs through tb/top/run.py:
 golden checksum = rv32sim's, every running hart's trace = rv32sim's, every UART packet equal
 to rv32sim's. Prints one line per setting and PASS only if all pass.
