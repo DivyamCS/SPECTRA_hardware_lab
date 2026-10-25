@@ -22,9 +22,11 @@ module mem_delay (
     input  wire [31:0] m_rdata
 );
 
+    // L = 5, 6, 8, 10 cycles (PROTOCOL.md section 7); cnt starts the cycle after start, so the
+    // first word comes when cnt = L - 1
     wire [4:0] L_in = (lat == 2'b00) ? 5'd4 : 
-                      (lat == 2'b01) ? 5'd8 : 
-                      (lat == 2'b10) ? 5'd12 : 5'd16;
+                      (lat == 2'b01) ? 5'd5 : 
+                      (lat == 2'b10) ? 5'd7 : 5'd9;
                       
     reg  [4:0] L = 5'd4;            // latency latched at accept, so a lat change mid-burst has no effect
     
@@ -51,7 +53,7 @@ module mem_delay (
     assign m_be    = nw_r ? 4'b1111 : be_r;
     assign m_wdata = wdata;
     
-    wire accept = start && (!busy || done);   // a new burst may start in the done cycle
+    wire accept = start && !busy;              // IF-B: a start in the done cycle is ignored; the next burst starts after done
     
     always @(posedge clk) begin
         if (rst) begin 
