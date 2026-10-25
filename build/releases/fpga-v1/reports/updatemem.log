@@ -1,0 +1,3 @@
+ok   mapping: the design's contents decode to C:\fpga\spectra\build\0cd48e2\impl\top_fpga\synth_image exactly (imem, dmem)
+ok   read back: imem and dmem in the design = C:\fpga\spectra\fw/build/demo exactly
+PASS updatemem: C:\fpga\spectra\fw/build/demo -> C:\fpga\spectra\build\0cd48e2\impl\top_fpga\top_fpga.bit
