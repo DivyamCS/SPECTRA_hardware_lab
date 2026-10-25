@@ -473,10 +473,11 @@ without re-implementing the design.
 - The D-cache is shared rather than private, so the two cores need no coherence protocol — and cannot show its cost.
 - Switches take effect at the next reset, not mid-run (by design: a run is one configuration).
 - The UART carries about 100 KB/s, so the dashboard shows the program's results, not every intermediate state.
+- Tasks are assigned to each core directly in the C code using their core ID rather than by an automated scheduler or operating system. Because the instruction split is hardcoded, the system cannot dynamically adapt to new programs or different data sizes without manually editing the code and rebuilding the firmware.
 
 ## Acknowledgements
 
-Built for **CS2201 (Hardware Lab), IIT Guwahati — Group 7**. The core grew out of the course's lab 5A
+Built for **CS2202L (Hardware Lab), IIT Guwahati — Group 7**. The core grew out of the course's lab 5A
 three-stage pipeline (`rtl/lab5a/`). Board: Digilent Nexys A7-100T. ISA: the RISC-V unprivileged
 specification (RV32I and the M extension).
 
