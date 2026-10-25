@@ -3,7 +3,7 @@
 scripts/dashboard.py — Laptop Live Streaming Dashboard (Task 6)
 ==============================================================
 Connects to the FPGA UART serial stream (e.g. Nexys A7 USB-UART at 115200 baud).
-Decodes 9-byte binary packets from result_streamer.v:
+Decodes 9-byte binary packets from store_streamer.v:
     Byte 0   : SOF = 0xAB
     Bytes 1-4: store address (32-bit little-endian)
     Bytes 5-8: store data    (32-bit little-endian)
@@ -125,7 +125,7 @@ class StreamDashboard:
             self.run_mock()
             return
 
-        print("[INFO] Listening for result_streamer packets (SOF=0xAB)... Press Ctrl+C to stop.")
+        print("[INFO] Listening for store_streamer packets (SOF=0xAB)... Press Ctrl+C to stop.")
         try:
             while True:
                 sof = self.ser.read(1)
