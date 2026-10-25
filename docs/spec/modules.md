@@ -21,8 +21,8 @@ and, if it touches an interface, in `docs/interfaces.md`.
 | 10 | [mem_delay](mem_delay.md) | rtl/mem/mem_delay.v | 54-55 | IF-B slave, IF-D | - |
 | 11 | [dmem_bram](dmem_bram.md) | rtl/mem/dmem_bram.v | 56 | - | - |
 | 12 | [imem_bram](imem_bram.md) | rtl/mem/imem_bram.v | 57 | - | - |
-| 13 | [repl_plru](repl_plru.md) | rtl/mem/repl_plru.v | 58 | - | - |
-| 14 | [repl_fifo](repl_fifo.md) | rtl/mem/repl_fifo.v | 59 | - | - |
+| 13 | [plru](plru.md) | rtl/mem/plru.v | 58 | - | - |
+| 14 | [fifo](fifo.md) | rtl/mem/fifo.v | 59 | - | - |
 | 15 | [dcache](dcache.md) | rtl/mem/dcache.v | 60-70 | IF-A slave, IF-B master, IF-D | `HAS_DCACHE` |
 | 16 | [clk_rst](clk_rst.md) | rtl/soc/clk_rst.v | 80 | - | - |
 | 17 | [switch_cfg](switch_cfg.md) | rtl/soc/switch_cfg.v | 81 | IF-D source | - |
