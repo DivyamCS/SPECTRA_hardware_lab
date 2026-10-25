@@ -1,184 +1,145 @@
 `timescale 1ns / 1ps
 `default_nettype none
-// =============================================================================
-// icache - private instruction cache (one per core)
-//   2 KB, 2-way set-associative, 16-byte lines (4 words), 64 sets, read-only,
-//   FIFO replacement (fifo.v). addr[3:0] offset, addr[9:4] index, addr[31:10] tag.
+// icache - private instruction cache of one core: 2 KB, 2-way, 16-byte lines, 64 sets, FIFO,
+// read-only (spec: docs/spec/icache.md, PROTOCOL.md sections 6-7, tools/cache_model.py ways=2).
+// Index addr[9:4], tag addr[31:10]; data in two 256 x 32 block RAMs, tags in two 64 x 22 block
+// RAMs, valid bits in flip-flops, FIFO pointers in fifo. IF-B master to the core's own
+// mem_delay (-> IMEM).
 //
-// Core side (BRAM-like, 1-cycle lookup):
-//   * A fetch is ACCEPTED in a cycle where fetch_accept = 1 (the core must
-//     present the next address then, and may change it freely otherwise).
-//   * The accepted fetch is looked up in the following cycle. On a hit,
-//     fetch_ready = 1 and instr is valid in that same cycle, and the next fetch
-//     is accepted in that cycle too -> back-to-back hits never stall.
-//   * Anything else while lk_valid = 1 is a stall: fetch_stall = 1.
-//
-// Memory side : mem_req is held until mem_ready;
-//   mem_rdata (128-bit line) is sampled in the mem_ready cycle; mem_req drops
-//   for at least one cycle between transactions. mem_addr is line-aligned.
-//
-// Miss flow: RUN -> FILL (wait for mem_ready, write data+tag+valid, fifo fill)
-//            -> REPLAY (re-read the arrays at the missed address) -> RUN (hit).
-// ic_en = 0 (bypass): every fetch is fetched as a line from memory, the wanted
-//   word is returned from a register, arrays / valid / fifo are untouched and
-//   no hit/miss pulses are produced.
-// =============================================================================
+// Like a synchronous BRAM: a fetch accepted in cycle t is looked up in t + 1, and on a hit
+// `fetch_ready` and `instr` come in t + 1 while the next fetch is accepted in that same cycle,
+// so straight hits never stall. A miss starts a 4-word line burst in the lookup cycle and
+// answers the cycle after its done: L + 4 extra cycles. With IC = 0 (or HAS_ICACHE = 0) every
+// fetch is a 1-word burst: L + 1 extra; arrays untouched, no pulses. A fill goes to the lowest
+// invalid way, else the FIFO victim: fifo (2 ways) keeps one pointer per
+// set, moved to the other way after each fill; hits never move it (first in, first out). ic_hit / ic_miss pulse once per fetch in its lookup cycle when IC = 1.
+// The core holds fetch_req and fetch_addr until fetch_ready, and asks again only for a new fetch.
+
 module icache #(
     parameter HAS_ICACHE = 1
 ) (
-    input  wire         clk,
-    input  wire         rst,          // synchronous, active high
-    input  wire         ic_en,        // 1 = cache on, 0 = bypass
-
-    // core side
-    input  wire         fetch_req,
-    input  wire [31:0]  fetch_addr,
-    output wire         fetch_accept,
-    output wire         fetch_ready,
-    output wire         fetch_stall,
-    output wire [31:0]  instr,
-
-    // memory side
-    output reg          mem_req,
-    output wire [31:0]  mem_addr,
-    input  wire [127:0] mem_rdata,
-    input  wire         mem_ready,
-
-    // performance counter events (one pulse per fetch)
-    output wire         ic_hit,
-    output wire         ic_miss
+    input  wire        clk,
+    input  wire        rst,
+    input  wire        ic_en,          // cfg[7]
+    input  wire        fetch_req,
+    input  wire [31:0] fetch_addr,
+    output wire        fetch_ready,
+    output wire [31:0] instr,
+    // IF-B master
+    output wire        m_start,
+    output wire        m_we,
+    output wire [29:0] m_addr,
+    output wire        m_nwords,
+    output wire [31:0] m_wdata,
+    output wire [3:0]  m_be,
+    input  wire        m_rvalid,
+    input  wire [31:0] m_rdata,
+    input  wire        m_wready,
+    input  wire        m_done,
+    // counter events
+    output wire        ic_hit,
+    output wire        ic_miss
 );
 
-    localparam [1:0] S_RUN = 2'd0, S_FILL = 2'd1, S_REPLAY = 2'd2, S_BYP = 2'd3;
+    localparam S_RUN = 2'd0, S_MISS = 2'd1, S_RESP = 2'd2;
 
-    wire on = ic_en && (HAS_ICACHE != 0);
+    wire        on = ic_en && (HAS_ICACHE != 0);
 
-    // ---------------- lookup-stage registers ----------------
     reg  [1:0]  state;
-    reg         lk_valid;
+    reg         lk_valid;                  // a fetch was accepted last cycle: look it up now
     reg  [31:0] lk_addr;
-    reg         vic_r;        // way being filled
-    reg         byp_r;        // current memory transaction is a bypass fetch
-    reg         rp;           // this lookup is the replay of a miss (already counted)
-    reg  [31:0] word_r;       // bypass result
+    reg  [31:0] word_r;                    // the fetched word of a miss / IC = 0 burst
+    reg         vic_r, line_r;
+    reg  [1:0]  rcnt;
 
-    wire [5:0]  lk_set = lk_addr[9:4];
-    wire [21:0] lk_tag = lk_addr[31:10];
-    wire [1:0]  lk_w   = lk_addr[3:2];
+    wire [5:0]  lk_set  = lk_addr[9:4];
+    wire [21:0] lk_tag  = lk_addr[31:10];
 
-    // ---------------- valid bits (flip-flops) ----------------
-    reg  [63:0] vld0, vld1;
-    wire        v0 = vld0[lk_set];
-    wire        v1 = vld1[lk_set];
+    reg  [1:0]  valid [0:63];
+    wire [21:0] tag_q [0:1];
+    wire [31:0] d_q   [0:1];
 
-    // ---------------- arrays ----------------
-    wire [127:0] dq [0:1];
-    wire [21:0]  tq [0:1];
+    wire [1:0]  v_set = valid[lk_set];
+    wire        h0 = v_set[0] && tag_q[0] == lk_tag;
+    wire        h1 = v_set[1] && tag_q[1] == lk_tag;
+    wire        hit = on && (h0 || h1);
+    wire        lookup = (state == S_RUN) && lk_valid;
 
-    wire h0 = v0 && (tq[0] == lk_tag);
-    wire h1 = v1 && (tq[1] == lk_tag);
-    wire hit = on && (h0 || h1);
+    // accept a new fetch whenever no burst is pending: on a hit, in RESP, or when idle
+    wire        accept = (state == S_RESP) || (state == S_RUN && !(lookup && !hit));
+    wire        start  = lookup && !hit;
+    wire        fifo_vic;
+    wire        victim = !v_set[0] ? 1'b0 : !v_set[1] ? 1'b1 : fifo_vic;
+    wire        refill_wr  = (state == S_MISS) && line_r && m_rvalid;
+    wire        refill_end = (state == S_MISS) && line_r && m_done;
 
-    wire run    = (state == S_RUN);
-    wire lookup = run && lk_valid;
-    wire miss   = lookup && !hit;
+    assign fetch_ready = (lookup && hit) || (state == S_RESP);
+    assign instr       = (state == S_RESP) ? word_r : (h1 ? d_q[1] : d_q[0]);
+    assign ic_hit      = lookup && hit;
+    assign ic_miss     = lookup && on && !hit;
 
-    // a new fetch is taken whenever nothing is pending
-    assign fetch_accept = (run && !miss) || (state == S_BYP);
-    assign fetch_ready  = (lookup && hit) || (state == S_BYP);
-    assign fetch_stall  = lk_valid && !fetch_ready;
+    assign m_start  = start;
+    assign m_we     = 1'b0;
+    assign m_nwords = start ? on : line_r;
+    assign m_addr   = (start ? on : line_r) ? {lk_addr[31:4], 2'b00} : lk_addr[31:2];
+    assign m_wdata  = 32'd0;
+    assign m_be     = 4'b1111;
 
-    // ---------------- FIFO victim selection ----------------
-    wire fill_wr = (state == S_FILL) && mem_ready && !byp_r;
-    wire fifo_victim;
-    fifo #(.NUM_SETS(64), .INDEX_BITS(6)) u_fifo (
-        .clk      (clk),
-        .rst      (rst),
-        .set      (lk_set),
-        .way_mask (2'b11),
-        .victim   (fifo_victim),
-        .fill     (fill_wr),
-        .fill_set (lk_set),
-        .fill_way (vic_r)
-    );
-    wire victim = !v0 ? 1'b0 : !v1 ? 1'b1 : fifo_victim;   // free way first, else oldest
+    // FIFO replacement: the pointer of the set moves past the way filled, at the end of a refill
+    fifo u_fifo (.clk(clk), .rst(rst), .set(lk_set), .way_mask(2'b11), .victim(fifo_vic),
+                 .fill(refill_end), .fill_set(lk_set), .fill_way(vic_r));
 
-    // ---------------- data path ----------------
-    wire [127:0] hit_line = h1 ? dq[1] : dq[0];
-    assign instr = (state == S_BYP) ? word_r : hit_line[32*lk_w +: 32];
-
-    assign mem_addr = {lk_addr[31:4], 4'b0000};
-
-    wire [5:0] rd_set = (state == S_REPLAY) ? lk_set : fetch_addr[9:4];
-    wire       rd_en  = fetch_accept || (state == S_REPLAY);
-
+    // arrays: read at accept with the new fetch address; written during a refill
+    wire [7:0]  rd_idx = fetch_addr[9:2];
+    wire [7:0]  wr_idx = {lk_set, rcnt};
     genvar g;
     generate
         for (g = 0; g < 2; g = g + 1) begin : g_way
-            (* ram_style = "block" *) reg [127:0] dm [0:63];
-            (* ram_style = "block" *) reg [21:0]  tm [0:63];
-            reg [127:0] dr;
-            reg [21:0]  tr;
+            (* ram_style = "block" *) reg [31:0] dm [0:255];
+            (* ram_style = "block" *) reg [21:0] tm [0:63];
+            reg [31:0] dq;
+            reg [21:0] tq;
             always @(posedge clk) begin
-                if (fill_wr && (vic_r == g)) begin
-                    dm[lk_set] <= mem_rdata;
-                    tm[lk_set] <= lk_tag;
-                end
-                if (rd_en) begin
-                    dr <= dm[rd_set];
-                    tr <= tm[rd_set];
-                end
+                if (refill_wr && vic_r == g) dm[wr_idx] <= m_rdata;
+                if (accept) dq <= dm[rd_idx];
             end
-            assign dq[g] = dr;
-            assign tq[g] = tr;
+            always @(posedge clk) begin
+                if (refill_end && vic_r == g) tm[lk_set] <= lk_tag;
+                if (accept) tq <= tm[rd_idx[7:2]];
+            end
+            assign d_q[g]   = dq;
+            assign tag_q[g] = tq;
         end
     endgenerate
 
-    // ---------------- control ----------------
+    integer i;
     always @(posedge clk) begin
         if (rst) begin
-            state    <= S_RUN;
-            lk_valid <= 1'b0;
-            mem_req  <= 1'b0;
-            rp       <= 1'b0;
-            vld0     <= 64'd0;
-            vld1     <= 64'd0;
+            state <= S_RUN; lk_valid <= 1'b0;
+            for (i = 0; i < 64; i = i + 1) valid[i] <= 2'b00;
         end else begin
-            if (fetch_accept) begin
+            if (accept) begin
                 lk_valid <= fetch_req;
                 lk_addr  <= fetch_addr;
             end
-            if (lookup) rp <= 1'b0;
-
             case (state)
-                S_RUN: if (miss) begin
-                    state   <= S_FILL;
-                    vic_r   <= victim;
-                    byp_r   <= !on;
-                    mem_req <= 1'b1;
+                S_RUN: if (start) begin
+                    state <= S_MISS; vic_r <= victim; line_r <= on; rcnt <= 2'd0;
                 end
-                S_FILL: if (mem_ready) begin
-                    mem_req <= 1'b0;
-                    if (byp_r) begin
-                        word_r <= mem_rdata[32*lk_w +: 32];
-                        state  <= S_BYP;
-                    end else begin
-                        if (vic_r) vld1[lk_set] <= 1'b1;
-                        else       vld0[lk_set] <= 1'b1;
-                        state <= S_REPLAY;
+                S_MISS: begin
+                    if (m_rvalid) begin
+                        rcnt <= rcnt + 2'd1;
+                        if (!line_r || rcnt == lk_addr[3:2]) word_r <= m_rdata;
+                    end
+                    if (m_done) begin
+                        state <= S_RESP;
+                        if (line_r) valid[lk_set][vic_r] <= 1'b1;
                     end
                 end
-                S_REPLAY: begin
-                    rp    <= 1'b1;
-                    state <= S_RUN;
-                end
-                default: state <= S_RUN;      // S_BYP: answered
+                default: state <= S_RUN;                     // S_RESP: answered, back to RUN
             endcase
         end
     end
-
-    assign ic_hit  = lookup && hit && !rp;
-    assign ic_miss = miss && on;
 
 endmodule
 
