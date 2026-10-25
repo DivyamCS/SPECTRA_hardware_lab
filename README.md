@@ -4,11 +4,14 @@
 
 ### Switch-Gated Profiling and Evaluation of Cache & Two-Core RISC-V Architectures
 
-A dual-core **RV32IM** system-on-chip on the **Nexys A7-100T** (Artix-7, 50 MHz) that turns five
-microarchitectural mechanisms — operand forwarding, private instruction caches, a shared 4-way data
-cache, memory latency and a second core — into **run-time switches**, and measures what each one is
-worth with **per-core hardware performance counters**. One bitstream and one program binary run in
-every configuration, so a change in cycle count can only come from the feature that was switched.
+A dual-core **RV32IM** processor on the **Nexys A7-100T** FPGA (Artix-7, 50 MHz), built to measure
+parallel processing and multi-core efficiency. The board's switches **enable or disable the second
+core**, so shared-memory behaviour and system throughput can be observed directly. Four more hardware
+features can also be toggled: **data forwarding**, **private instruction caches**, a **shared 4-way
+data cache** and **added memory latency**. Dedicated **per-core performance counters** record
+execution time, wait (idle) cycles and memory traffic. The same program binary and bitstream run in
+the single-core and dual-core setups, so any performance gain comes directly from running two cores
+in parallel.
 
 <br/>
 
@@ -17,7 +20,7 @@ every configuration, so a change in cycle count can only come from the feature t
 [![FPGA](https://img.shields.io/badge/FPGA-Artix--7_XC7A100T-ED1C24?logo=amd&logoColor=white)](https://digilent.com/reference/programmable-logic/nexys-a7/start)
 [![Vivado](https://img.shields.io/badge/Vivado-2025.2-ED1C24?logo=amd&logoColor=white)](https://www.amd.com/en/products/software/adaptive-socs-and-fpgas/vivado.html)
 [![Timing](https://img.shields.io/badge/Timing-met_@_50_MHz-2ea44f)](#resource-utilization)
-[![Tests](https://img.shields.io/badge/Tests-40_RTL_·_84_software_·_263_board_runs-2ea44f)](#verification)
+[![Tests](https://img.shields.io/badge/Tests-41_RTL_·_84_software_·_263_board_runs-2ea44f)](#verification)
 [![Python](https://img.shields.io/badge/Python-3.9+-3776AB?logo=python&logoColor=white)](host/)
 
 [Overview](#overview) · [Architecture](#architecture) · [Results](#measured-results) · [Quick start](#quick-start) · [Board reference](#board-reference) · [Verification](#verification) · [Project structure](#project-structure)
@@ -34,28 +37,37 @@ every configuration, so a change in cycle count can only come from the feature t
 
 ## Overview
 
-**The question.** Textbooks say caches, forwarding and a second core make a processor faster. SPECTRA
-answers *by how much*, on a real pipeline, for real workloads — and shows that the answer depends
-on the workload.
+**Motivation.** Textbooks say that a second core, caches and data forwarding make a processor
+faster, but simple estimates rarely match real hardware. Real workloads meet bus contention, cache
+misses and pipeline stalls that these models leave out.
 
-**The method: one controlled experiment per switch.** Every optional mechanism has a hardware bypass.
-At reset (**BTNC**) the 16 slide switches are sampled into a configuration word that stays fixed
-for the whole run, so each run is one well-defined hardware configuration. Because the bitstream
-and the program binary never change, the difference between two runs is the contribution of the
-feature that was switched — an ablation study done in hardware, in seconds, without re-synthesis.
+**Objective.** Measure the true speed-up and trade-offs of these mechanisms on real FPGA hardware,
+with the main focus on parallel dual-core execution across different benchmark workloads.
+
+**The problem solved.** Testing an architectural trade-off normally means slow software simulation,
+or re-running synthesis and implementation for every feature change. SPECTRA builds run-time
+hardware bypasses into the design instead. Any feature is toggled with an on-board switch while the
+bitstream and the program binary stay identical, so there is no rebuild, and the effect of each
+mechanism is isolated in seconds.
+
+**The method: one controlled test per switch.** Every optional feature, including the second core,
+has its own bypass path. At reset (**BTNC**) the 16 slide switches are saved into a configuration
+register that stays fixed for the whole run, so each run is one well-defined hardware configuration.
+Because the bitstream and the program binary never change, the difference in execution time between
+two runs is exactly the effect of the feature that was switched.
 
 | Switched mechanism | Range | Switches |
 | --- | --- | --- |
 | Operand forwarding MEM/WB → EX | on / off (off: 1-cycle interlock per dependence) | SW0 |
-| Shared D-cache, 4 KB, 4-way, PLRU | on / off · write-back or write-through · 1–4 ways | SW1 · SW9 · SW13:10 |
+| Shared D-cache, 4 KB, 4-way, write-back, PLRU | on / off | SW1 |
 | Private I-caches, 2 KB, 2-way, FIFO | on / off | SW7 |
 | Second core (shared D-cache, round-robin arbiter, hardware barrier) | 1 or 2 cores | SW2 |
 | Memory latency in front of the BRAMs | L = 5, 6, 8, 10 cycles | SW4:3 |
 | Workload | Game of Life · Mandelbrot (two work splits) · MatMul 32×32 | SW6:5 |
 
 **The measurement.** Firmware writes RUN_START and RUN_STOP around the measured kernel; in between,
-15 hardware counters run: cycles, and per core instructions retired, I- and D-cache hits and
-misses, arbiter wait and barrier wait. They leave the board in a CRC-checked UART packet together
+15 hardware counters run: cycles (execution time), and per core instructions retired, I- and D-cache
+hits and misses (memory traffic), arbiter wait and barrier wait (idle cycles). They leave the board in a CRC-checked UART packet together
 with the program's checksum, appear on the labelled 7-segment display, and feed the dashboard,
 which derives CPI, hit rates and speed-ups. A result streamer snoops the program's own stores, so
 the dashboard draws each frame, row and matrix as the cores compute it, without a single print
@@ -72,7 +84,7 @@ SW = 0x0010   Game of Life, every feature off       604,166,137 cycles  12.08 s 
 
 | Level | Simulation or test | Compared against |
 | --- | --- | --- |
-| Module | 32 self-checking Vivado **xsim** testbenches, directed and random vectors | Python reference models (`tools/cache_model.py`, arbiter, MUL / DIV, decoder) |
+| Module | 33 self-checking Vivado **xsim** testbenches, directed and random vectors | Python reference models (`tools/cache_model.py`, arbiter, MUL / DIV, decoder) |
 | Core | xsim **commit trace**: PC, instruction, register write and memory access of every retired instruction | the `rv32sim` instruction-set simulator, 0 differences |
 | System | whole-SoC xsim runs of every program | golden checksums (`tools/golden.py`), every UART packet and every counter of `rv32sim` |
 | Board | 263 scripted runs through a JTAG VIO hook | the same packets and checksums; cycles = the RTL simulation's |
@@ -80,8 +92,8 @@ SW = 0x0010   Game of Life, every feature off       604,166,137 cycles  12.08 s 
 | At a glance | |
 | --- | --- |
 | **Cores** | 2 × RV32IM, 3-stage pipeline (IF/ID · EX · MEM/WB), switchable forwarding, MUL on DSP48, iterative DIV, hardware LOCK and BARRIER |
-| **Memory system** | Private 2 KB 2-way I-caches (FIFO) · shared 4 KB 4-way D-cache (PLRU, write-back / write-through, 1–4 ways) · memory latency model 5–10 cycles · 16 KB IMEM, 128 KB DMEM |
-| **Configuration** | 9 fields on 16 switches, sampled at reset — no re-synthesis, no reprogramming |
+| **Memory system** | Private 2 KB 2-way I-caches (FIFO) · shared 4 KB 4-way D-cache (write-back, PLRU) · memory latency model 5–10 cycles · 16 KB IMEM, 128 KB DMEM |
+| **Configuration** | 7 fields on 16 switches, sampled at reset — no re-synthesis, no reprogramming |
 | **Measurement** | 15 hardware counters (cycles; per core: instructions, I / D hits and misses, arbiter and barrier wait) |
 | **Workloads** | Game of Life 64×64 · Mandelbrot 192×144, split by halves or by interleaved rows · MatMul 32×32 · 5 test programs |
 | **Output** | Result streamer, UART 1 Mbaud, CRC-checked packets · labelled 7-segment display · live web dashboard |
@@ -96,7 +108,7 @@ SW = 0x0010   Game of Life, every feature off       604,166,137 cycles  12.08 s 
 | Turn any feature on or off **without rebuilding** | Switches are sampled into a configuration word at reset; each feature has a bypass path in hardware | Every program × configuration golden on the board (263 runs) |
 | Measure, don't estimate | Per-core hardware counters, read out over UART in a CRC-checked STATS packet | Counters equal the instruction simulator and the Python cache model exactly (`tb/top/check_counters.py`) |
 | Show the **two-core** speed-up | Second core released by SW2; shared D-cache behind a round-robin arbiter; hardware barrier | 1.80×–1.99× on the board across all three programs |
-| Show the **cache** effect | I-caches, D-cache, write policy, ways and memory latency all switchable | Up to 6.5× from the I-caches and 4.0× from the D-cache |
+| Show the **cache** effect | I-caches, D-cache and memory latency all switchable | Up to 6.5× from the I-caches and 4.0× from the D-cache |
 | Stay **correct** in every configuration | Same binary, same checksum, every switch setting | 120 seeded random settings on the board, 0 failures |
 | Make it **visible** | Streamer snoops the program's result buffers; the dashboard redraws them live | Every UART packet equals the reference simulator's |
 | Be **reproducible** | Deterministic hardware and firmware; scripted board runs through a JTAG hook | Same configuration → identical cycle count and packet stream, run after run |
@@ -161,6 +173,8 @@ All numbers are **board measurements at 50 MHz** (release `fpga-v1`; source rows
 Default configuration: forwarding, both caches (I-cache FIFO, D-cache PLRU), write-back, 4 ways, L = 8.
 fpga-v1's I-cache used 1-bit LRU; the current RTL (FIFO) was rebuilt and rerun on the board: all 115 runs
 identical to fpga-v1 ([`docs/results/board_icache_fifo.md`](docs/results/board_icache_fifo.md)).
+The team's integrated RTL (25 Oct: the members' modules, a write-back-only D-cache) passes every
+RTL test, including the cycle-exact ones, and builds with timing met; it has not been re-run on the board yet.
 
 ### Two cores
 
@@ -184,9 +198,7 @@ the two memory-heavy programs; [`docs/results/ablation.md`](docs/results/ablatio
 | --- | :---: | :---: | --- |
 | I-caches | **6.51×** | **5.30×** | every instruction fetch waits L + 1 cycles |
 | D-cache | **4.00×** | **3.68×** | every load and store goes to memory; arbiter wait rises to 36–37 % |
-| 3 of the 4 D-cache ways | 3.70× | 4.95× | hit rate falls to 44 % (GoL) and 33 % (MatMul) |
 | Second core | 1.82× | 1.80× | |
-| Write-back (write-through instead) | 1.26× | 1.96× | every store reaches memory |
 | Forwarding | 1.25× | 1.06× | one-cycle interlocks on dependent instructions |
 | Memory latency 8 → 10 cycles | 1.02× | 1.02× | the caches hide almost all of it |
 | **Everything** (1 core, no forwarding, no caches) | **15.63×** | **11.07×** | CPI 12.9 and 12.2 instead of 1.5–2.2 |
@@ -207,8 +219,8 @@ Post-route on xc7a100tcsg324-1, release `fpga-v1` ([`build/releases/fpga-v1/summ
 | Block RAM tiles | 53 | 135 | 39.3 % |
 | DSP48E1 | 8 | 240 | 3.3 % |
 
-Timing met at 50 MHz: WNS +0.272 ns, WHS +0.031 ns. The current RTL (I-cache FIFO, D-cache PLRU only) builds to
-10,034 LUT and 8,087 FF, WNS +0.408 ns ([`docs/results/board_icache_fifo.md`](docs/results/board_icache_fifo.md)). What each feature costs in hardware
+Timing met at 50 MHz: WNS +0.272 ns, WHS +0.031 ns. The current RTL (I-cache FIFO, write-back D-cache with PLRU) builds to
+9,982 LUT and 8,230 FF, WNS +0.262 ns (`scripts/fpga_build.py`). What each feature costs in hardware
 (each removed by a build parameter and the design rebuilt; [`docs/results/area.md`](docs/results/area.md)):
 
 | Feature | LUT | FF | BRAM | DSP |
@@ -284,8 +296,7 @@ python scripts/fpga_build.py         # synthesis, implementation, checks -> buil
 | SW6:5 | PROGRAM | 00 Game of Life · 01 Mandelbrot (halves) · 10 Mandelbrot (interleaved) · 11 MatMul |
 | SW7 | IC | Private I-caches (off: every fetch goes to memory) |
 | SW8 | — | Reserved (ignored) |
-| SW9 | WPOL | 0 = write-back, write-allocate · 1 = write-through, no-allocate |
-| SW13:10 | WAYS | D-cache ways enabled (0000 = all four) |
+| SW9 · SW13:10 | — | Reserved (ignored) |
 | SW15:14 | DISPLAY | Which counter the display shows after a run (read live) |
 
 | Configuration | Switches |
@@ -352,7 +363,7 @@ python scripts/regress.py dcache     # one RTL test by name
 
 | Level | What is checked | Reference | Result |
 | --- | --- | --- | --- |
-| **Module** | 32 self-checking testbenches, one per module (`tb/tb_*.v`) | spec page + Python models | all PASS |
+| **Module** | 33 self-checking testbenches, one per module (`tb/tb_*.v`) | spec page + Python models | all PASS |
 | **Core** | Commit trace, instruction by instruction, every test image, FWD and IC on / off | `rv32sim` + `tools/tracecmp.py` | 0 differences |
 | **Caches** | Every I-cache and D-cache hit and miss, 100,000 random accesses per configuration | `tools/cache_model.py` | 0 differences |
 | **Timing** | 30 cycles of the MatMul inner loop, every pipeline signal | pipeline model built from the documented rules | 30 of 30 rows equal |
@@ -406,8 +417,8 @@ runs are measurements.
 | `rtl/core/mem_stage.v` | Load / store side of MEM/WB: byte enables, alignment, sign extension |
 | `rtl/core/icache.v` | Private I-cache: 2 KB, 2-way, 16-byte lines, FIFO |
 | `rtl/core/commit_trace.v` | Simulation-only commit trace, compared with `rv32sim` |
-| `rtl/mem/dcache.v` | Shared D-cache: 4 KB, 4-way, 16-byte lines, PLRU, write-back or write-through |
-| `rtl/mem/repl_plru.v` · `repl_fifo.v` | Tree pseudo-LRU (D-cache) · FIFO replacement (I-cache) |
+| `rtl/mem/dcache.v` | Shared D-cache: 4 KB, 4-way, 16-byte lines, write-back / write-allocate, PLRU |
+| `rtl/mem/plru.v` · `fifo.v` | Tree pseudo-LRU (D-cache) · 2-way FIFO replacement (I-cache) |
 | `rtl/mem/mem_delay.v` | Memory latency model, L = 5, 6, 8, 10 |
 | `rtl/mem/imem_bram.v` · `dmem_bram.v` | 16 KB dual-port instruction memory · 128 KB data memory |
 | `rtl/soc/rr_arbiter.v` | Round-robin arbiter for the two cores' data ports |
