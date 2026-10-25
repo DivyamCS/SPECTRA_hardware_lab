@@ -1,0 +1,20 @@
+# ablation_list.txt - every feature changed alone from 'all on', then all off.
+# Base = all on: FWD, IC (FIFO), DC (write-back, PLRU), DUAL, L = 8. 'All off' keeps L = 8
+# (latency is a setting, not a feature). Run with scripts/board_regress.py;
+# scripts/ablation.py reads the CSV. Reviewed and approved by Divyam, 17 Oct 2026.
+gol_all_on 0097
+gol_fwd_off 0096
+gol_ic_off 0017
+gol_dc_off 0095
+gol_dual_off 0093
+gol_L5 0087
+gol_L10 009f
+gol_all_off 0010
+matmul_all_on 00f7
+matmul_fwd_off 00f6
+matmul_ic_off 0077
+matmul_dc_off 00f5
+matmul_dual_off 00f3
+matmul_L5 00e7
+matmul_L10 00ff
+matmul_all_off 0070
