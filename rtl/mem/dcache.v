@@ -9,13 +9,15 @@
 // Index addr[9:4], tag addr[31:10]. Data in four 256 x 32 block RAMs (one per way,
 // byte-write); tags in four 64 x 22 block RAMs; valid and dirty in flip-flops.
 // On a miss the lowest invalid way is filled first, otherwise the PLRU victim is used.
-// cache_en = 0 : every access is a 1-word burst straight to memory (bypass).
-// cache_en may only change together with a reset (a dirty line would go stale otherwise).
+// cfg_dc = 0 (SW1 down) or HAS_DCACHE = 0: every access is a 1-word burst straight to memory (bypass).
+// cfg_dc only changes with a reset (the switches are sampled then), so no dirty line goes stale.
 // =============================================================================
-module dcache (
+module dcache #(
+    parameter HAS_DCACHE = 1           // 0 removes the cache (area builds): always bypass
+) (
     input  wire        clk,
     input  wire        rst,
-    input  wire        cache_en,       // 1 = cache on, 0 = bypass
+    input  wire        cfg_dc,         // cfg[1] DC: 1 = cache on, 0 = bypass
 
     // IF-A slave
     input  wire        req,
@@ -40,10 +42,12 @@ module dcache (
     input  wire        m_done,
 
     // counter events
-    output wire        hit_pulse,
-    output wire        miss_pulse,
-    output wire        owner_pulse
+    output wire        ev_hit,
+    output wire        ev_miss,
+    output wire        ev_owner
 );
+
+    wire cache_en = cfg_dc && (HAS_DCACHE != 0);
 
     localparam [2:0] STATE_IDLE      = 3'd0,
                      STATE_LOOKUP    = 3'd1,
@@ -182,9 +186,9 @@ module dcache (
 
     assign ready       = cache_hit || (state == STATE_RESP);
     assign rdata       = (state == STATE_RESP) ? rdata_reg : data_q[hit_way];
-    assign hit_pulse   = in_lookup && cache_en && hit;
-    assign miss_pulse  = in_lookup && cache_en && !hit;
-    assign owner_pulse = owner_reg;
+    assign ev_hit      = in_lookup && cache_en && hit;
+    assign ev_miss     = in_lookup && cache_en && !hit;
+    assign ev_owner    = owner_reg;
 
     integer i;
     always @(posedge clk) begin
