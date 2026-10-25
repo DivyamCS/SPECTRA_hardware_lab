@@ -1,5 +1,5 @@
 // ============================================================
-// tb_mem_delay.v  —  Testbench for mem_delay.v
+// tb_memory_delay.v  —  Testbench for memory_delay.v
 // ============================================================
 // Tests:
 //   1. Single read: verify stall lasts exactly WAIT_CYCLES clocks
@@ -10,7 +10,7 @@
 // ============================================================
 `timescale 1ns / 1ps
 
-module tb_mem_delay;
+module tb_memory_delay;
 
     // ---- Parameters ----
     parameter WAIT_CYCLES = 7;
@@ -40,7 +40,7 @@ module tb_mem_delay;
     wire [ 3:0] mem_wstrb;
 
     // ---- DUT ----
-    mem_delay #(.WAIT_CYCLES(WAIT_CYCLES)) DUT (
+    memory_delay #(.WAIT_CYCLES(WAIT_CYCLES)) DUT (
         .clk       (clk),
         .reset     (reset),
         .re        (re),
@@ -88,8 +88,8 @@ module tb_mem_delay;
 
     // ---- Main sequence ----
     initial begin
-        $dumpfile("tb_mem_delay.vcd");
-        $dumpvars(0, tb_mem_delay);
+        $dumpfile("tb_memory_delay.vcd");
+        $dumpvars(0, tb_memory_delay);
 
         // ---------- Reset ----------
         reset = 1; re = 0; we = 0;
