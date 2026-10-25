@@ -1,21 +1,21 @@
 // ============================================================
-// top_fpga.v  —  Single-Core FPGA Bring-Up Top Module (Task 7)
+// top_fpga_single.v  —  Single-Core FPGA Bring-Up Top Module (Task 7)
 // ============================================================
 // Integrates on Nexys A7:
 //   - 100 MHz board clock with 50 MHz system clock divider
 //   - Single-Core RISC-V 3-stage CPU pipeline (pipe.v)
 //   - Instruction Memory BRAM (instr_mem)
-//   - Data Memory BRAM (data_mem) with wait-state delay (mem_delay.v)
+//   - Data Memory BRAM (data_mem) with wait-state delay (memory_delay.v)
 //   - MMIO Address Decoder (mmio_decoder.v at 0x8000_0000)
-//   - Hardware Performance Counters (perf_counters.v)
-//   - Result Streamer (result_streamer.v snooping 0x0001_F000)
+//   - Hardware Performance Counters (cycle_counters.v)
+//   - Result Streamer (store_streamer.v snooping 0x0001_F000)
 //   - UART Transmitter (uart_tx.v at 115200 baud on pin D4)
 //   - Switch-Selectable 7-Segment Display (sw_counter_display.v + seg7.v)
 //   - Status LEDs (led[15:0])
 // ============================================================
 `timescale 1ns / 1ps
 
-module top_fpga #(
+module top_fpga_single #(
     parameter CLK_HZ      = 50_000_000,
     parameter BAUD        = 115_200,
     parameter MEM_DELAY   = 5
@@ -102,7 +102,7 @@ module top_fpga #(
     wire [31:0] bram_wdata;
     wire [ 3:0] bram_wstrb;
 
-    mem_delay #(
+    memory_delay #(
         .WAIT_CYCLES(MEM_DELAY)
     ) U_MEM_DELAY (
         .clk         (sys_clk),
@@ -175,7 +175,7 @@ module top_fpga #(
     // An instruction retires when pipeline is active and not stalled
     wire instret_pulse = !pipe_stall && !exception;
 
-    perf_counters U_PERF (
+    cycle_counters U_PERF (
         .clk           (sys_clk),
         .reset         (reset),
         .instret_en    (instret_pulse),
@@ -225,7 +225,7 @@ module top_fpga #(
     wire [ 7:0] stream_uart_din;
     wire        stream_uart_valid;
 
-    result_streamer #(
+    store_streamer #(
         .OUTPUT_BASE (32'h0001_F000),
         .OUTPUT_MASK (32'hFFFF_F000)
     ) U_STREAMER (
