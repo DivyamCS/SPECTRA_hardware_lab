@@ -1,5 +1,5 @@
 // ============================================================
-// mem_delay.v  —  Wait-State Memory Delay Model
+// memory_delay.v  —  Wait-State Memory Delay Model
 // ============================================================
 // Wraps a data_mem (or imem_bram) and inserts WAIT_CYCLES
 // wait states on every read, simulating off-chip DRAM latency.
@@ -13,7 +13,7 @@
 //
 // Handshake (read path)
 //   1. CPU asserts  re + raddr
-//   2. mem_delay asserts  stall_out for WAIT_CYCLES cycles
+//   2. memory_delay asserts  stall_out for WAIT_CYCLES cycles
 //   3. After the wait, rdata is valid and stall_out deasserts
 //
 // Write path is pass-through (no stall added; writes complete
@@ -21,7 +21,7 @@
 // ============================================================
 `timescale 1ns / 1ps
 
-module mem_delay #(
+module memory_delay #(
     parameter WAIT_CYCLES = 7          // 5–10 configurable
 )(
     input  wire        clk,
