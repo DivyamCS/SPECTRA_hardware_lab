@@ -1,20 +1,20 @@
 // ============================================================
-// tb_perf_counters_mmio.v  —  Testbench for perf_counters +
+// tb_cycle_counters_mmio.v  —  Testbench for cycle_counters +
 //                              mmio_decoder (Task 5)
 // ============================================================
 `timescale 1ns / 1ps
 
-module tb_perf_counters_mmio;
+module tb_cycle_counters_mmio;
 
     reg clk, reset;
     initial clk = 0;
     always #5 clk = ~clk;   // 100 MHz
 
-    // ---- perf_counters DUT ----
+    // ---- cycle_counters DUT ----
     reg         instret_en;
     wire [31:0] cycle_cnt, instret_cnt;
 
-    perf_counters PC (
+    cycle_counters PC (
         .clk         (clk),
         .reset       (reset),
         .instret_en  (instret_en),
@@ -67,8 +67,8 @@ module tb_perf_counters_mmio;
 
     integer i;
     initial begin
-        $dumpfile("tb_perf_counters_mmio.vcd");
-        $dumpvars(0, tb_perf_counters_mmio);
+        $dumpfile("tb_cycle_counters_mmio.vcd");
+        $dumpvars(0, tb_cycle_counters_mmio);
 
         reset = 1; we = 0; re = 0; waddr = 0; wdata = 0;
         wstrb = 4'hF; raddr = 0; instret_en = 0;
@@ -126,7 +126,7 @@ module tb_perf_counters_mmio;
         // ---- TEST 6: MMIO read cycle_cnt ----
         $display("\n--- TEST 6: cycle_cnt via MMIO ---");
         re = 1; raddr = 32'h8000_0040; #1;
-        check(rdata == cycle_cnt, "MMIO cycle_cnt matches perf_counters output");
+        check(rdata == cycle_cnt, "MMIO cycle_cnt matches cycle_counters output");
         re = 0;
 
         // ---- TEST 7: core1_release ----

@@ -1,5 +1,5 @@
 // ============================================================
-// perf_counters.v  —  Cycle & Instruction-Retired Counters
+// cycle_counters.v  —  Cycle & Instruction-Retired Counters
 // ============================================================
 // Implements two 32-bit performance counters readable via MMIO:
 //   CYCLE_CNT   @ MMIO_BASE + 0x40  — free-running clock cycles
@@ -20,7 +20,7 @@
 // ============================================================
 `timescale 1ns / 1ps
 
-module perf_counters (
+module cycle_counters (
     input  wire        clk,
     input  wire        reset,
     input  wire        instret_en,      // 1 cycle per retired instruction

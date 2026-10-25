@@ -18,7 +18,7 @@
 //   0x80000044  INSTRET_CNT   read  → retired-instr counter
 //   0x80000050  CACHE_CTRL    r/w   → bit[0]=en, bit[1]=wp
 //
-// CPU interface matches data_mem / mem_delay:
+// CPU interface matches data_mem / memory_delay:
 //   we + waddr + wdata + wstrb  (write path)
 //   re + raddr → rdata          (read path, combinational)
 //
