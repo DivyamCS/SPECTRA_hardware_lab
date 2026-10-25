@@ -1,9 +1,9 @@
 // ============================================================
-// tb_result_streamer.v  —  Testbench for result_streamer (Task 6)
+// tb_store_streamer.v  —  Testbench for store_streamer (Task 6)
 // ============================================================
 `timescale 1ns / 1ps
 
-module tb_result_streamer;
+module tb_store_streamer;
 
     reg clk, reset;
     initial clk = 0;
@@ -17,8 +17,8 @@ module tb_result_streamer;
     wire       uart_valid;
     reg        uart_busy;
 
-    // Instantiate result_streamer with 4KB window at 0x0001_F000
-    result_streamer #(
+    // Instantiate store_streamer with 4KB window at 0x0001_F000
+    store_streamer #(
         .OUTPUT_BASE(32'h0001_F000),
         .OUTPUT_MASK(32'hFFFF_F000)
     ) DUT (
@@ -78,8 +78,8 @@ module tb_result_streamer;
     end
 
     initial begin
-        $dumpfile("tb_result_streamer.vcd");
-        $dumpvars(0, tb_result_streamer);
+        $dumpfile("tb_store_streamer.vcd");
+        $dumpvars(0, tb_store_streamer);
 
         reset    = 1;
         we       = 0;
