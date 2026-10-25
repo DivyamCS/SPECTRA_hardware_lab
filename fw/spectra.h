@@ -63,8 +63,6 @@
 #define CFG_LAT(c)      (((c) >> 3) & 3u)    /* 0..3 -> L = 5, 6, 8, 10 cycles */
 #define CFG_PROGRAM(c)  (((c) >> 5) & 3u)    /* 0 GoL, 1 Mandelbrot halves, 2 Mandelbrot interleaved, 3 MatMul */
 #define CFG_IC(c)       (((c) >> 7) & 1u)
-#define CFG_WPOL(c)     (((c) >> 9) & 1u)    /* 0 = write-back, 1 = write-through */
-#define CFG_WAYS(c)     (((c) >> 10) & 15u)  /* way mask: 0000 = all 4 */
 #define CFG_DISPLAY(c)  (((c) >> 14) & 3u)   /* 7-segment counter select (read live from SWITCHES) */
 
 #define PROG_GOL     0u
