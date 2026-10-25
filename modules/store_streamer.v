@@ -1,5 +1,5 @@
 // ============================================================
-// result_streamer.v  —  Snooped-Store Result Streamer (Task 6)
+// store_streamer.v  —  Snooped-Store Result Streamer (Task 6)
 // ============================================================
 // Watches the pipeline's write-back store bus. When a store
 // falls within the configured OUTPUT_BASE region it packetises
@@ -18,7 +18,7 @@
 // ============================================================
 `timescale 1ns / 1ps
 
-module result_streamer #(
+module store_streamer #(
     parameter [31:0] OUTPUT_BASE = 32'h0001_F000,
     parameter [31:0] OUTPUT_MASK = 32'hFFFF_F000   // snoop 4KB window
 )(
