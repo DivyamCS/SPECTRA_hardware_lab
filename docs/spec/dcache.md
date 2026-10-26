@@ -46,6 +46,6 @@ the Python model and a memory image (0 mismatches in data, hit/miss and cycles);
 ## Change log
 | Version | Date | Change |
 | --- | --- | --- |
-| 1.0 | 16 Oct 2026 | First version, approved by Divyam |
+| 1.0 | 16 Oct 2026 | First version |
 | 1.1 | 24 Oct 2026 | PLRU only: `cfg_repl` (SW8) and repl_fifo removed |
-| 1.2 | 25 Oct 2026 | Anjali's design: write-back / write-allocate only; `cfg_wpol` (SW9) and `cfg_ways` (SW13:10) removed, both switches reserved |
+| 1.2 | 25 Oct 2026 | Write-back / write-allocate only; `cfg_wpol` (SW9) and `cfg_ways` (SW13:10) removed, both switches reserved |

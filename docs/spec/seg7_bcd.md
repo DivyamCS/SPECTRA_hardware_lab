@@ -40,5 +40,5 @@ order and period. PASS = 0 mismatches. Board check: the switch value is readable
 ## Change log
 | Version | Date | Change |
 | --- | --- | --- |
-| 1.0 | 16 Oct 2026 | First version, approved by Divyam |
-| 1.1 | 17 Oct 2026 | Input `txt` (SEG7_TXT): per digit, 0 = the number's digit, 1-15 = a letter (C y I H d n P A r - 0 1 t E blank), always lit; a decimal point on a letter does not change the blanking. tools/seg7_model.py and tb/seg7/run.py cover every code on every digit. Divyam's request (17 Oct, demo): labels such as IH 99.98. Approved by Divyam (his request) |
+| 1.0 | 16 Oct 2026 | First version |
+| 1.1 | 17 Oct 2026 | Input `txt` (SEG7_TXT): per digit, 0 = the number's digit, 1-15 = a letter (C y I H d n P A r - 0 1 t E blank), always lit; a decimal point on a letter does not change the blanking. tools/seg7_model.py and tb/seg7/run.py cover every code on every digit. For the labelled 7-segment tour (labels such as IH 99.98) |

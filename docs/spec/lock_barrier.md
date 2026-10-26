@@ -43,5 +43,5 @@ cycles. PASS = all checks.
 ## Change log
 | Version | Date | Change |
 | --- | --- | --- |
-| 1.0 | 16 Oct 2026 | First version, approved by Divyam |
-| 1.0.1 | 16 Oct 2026 | `bar_req` / `bar_release` connect to rr_arbiter, not mmio_bus: BARRIER reads are parked in rr_arbiter (they never hold the shared data port, which would keep the other core from reaching the barrier: a deadlock in the 1.0 design). Pending Divyam's review |
+| 1.0 | 16 Oct 2026 | First version |
+| 1.0.1 | 16 Oct 2026 | `bar_req` / `bar_release` connect to rr_arbiter, not mmio_bus: BARRIER reads are parked in rr_arbiter (they never hold the shared data port, which would keep the other core from reaching the barrier: a deadlock in the 1.0 design) |

@@ -22,7 +22,7 @@ hardware rule is unchanged. No number, register or timing changed.
 | Reset | BTNC, active high; releases core 0, and core 1 when DUAL = 1 |
 | Cores | 2 x 3-stage RV32IM (IF/ID, EX, MEM/WB), both start at PC 0 |
 | ISA used by the firmware | RV32I + M only: no FENCE, ECALL, EBREAK, CSR or compressed instructions |
-| Loads to x0 | Must still access memory (a BARRIER read written as `lw zero, 0xC(base)` must still wait); the kit firmware loads BARRIER into a normal register (boot.S: `t3`) |
+| Loads to x0 | Must still access memory (a BARRIER read written as `lw zero, 0xC(base)` must still wait); the firmware loads BARRIER into a normal register (boot.S: `t3`) |
 | Register file | Write-through: a value written in MEM/WB is read in the same cycle |
 | Branches | Resolved in EX; the 2 instructions behind a taken branch, JAL or JALR are squashed |
 
