@@ -46,5 +46,5 @@ DIV holds `md_busy` for its whole run. PASS = 0 mismatches.
 ## Change log
 | Version | Date | Change |
 | --- | --- | --- |
-| 1.0 | 16 Oct 2026 | First version, approved by Divyam |
-| 1.0.1 | 16 Oct 2026 | input `stall` (freeze or interlock) becomes `freeze`. The unit must know when EX moves (not frozen, not busy) to clear its started/finished flags, and an interlock never coincides with a start (it requires md_busy = 0). Start once per instruction; result kept under a freeze. Approved by Divyam, 16 Oct 2026 |
+| 1.0 | 16 Oct 2026 | First version |
+| 1.0.1 | 16 Oct 2026 | input `stall` (freeze or interlock) becomes `freeze`. The unit must know when EX moves (not frozen, not busy) to clear its started/finished flags, and an interlock never coincides with a start (it requires md_busy = 0). Start once per instruction; result kept under a freeze. |

@@ -39,7 +39,7 @@ Evidence column: how it was checked.
 | Reset = BTNC (N17), active high | Active high, but on J15 (= SW0, which SPECTRA uses as FWD) | baseline build keeps J15 |
 | Reset releases core 0, and core 1 only when DUAL = 1 | One core | |
 | 2 cores, both start at PC 0 | One core; `RESET` parameter = 0 | |
-| ISA: RV32I + M only | RV32I **without AUIPC**; no M | every kit image uses AUIPC (17 in demo) |
+| ISA: RV32I + M only | RV32I **without AUIPC**; no M | every firmware image uses AUIPC (17 in demo) |
 | No FENCE/ECALL/EBREAK/CSR/compressed needed | Not decoded (flagged illegal) | build.py and run_all.py enforce it in firmware |
 | Loads to x0 still access memory | Yes: the read is issued from `mem_to_reg`, independent of rd | t_lab5a `lw x0, 0(s0)` gives `ld` in the trace |
 | Register file write-through (MEM/WB value read in the same cycle) | Yes in effect: the lab reads the register array in EX with a MEM/WB bypass | t_lab5a distance-1 chains match |
@@ -83,7 +83,7 @@ Evidence column: how it was checked.
 ## 6. AUIPC
 
 * The decoder also adds **AUIPC** (opcode 0010111: rd = pc + imm[31:12] << 12). Reason: the lab
-  decoder lacks it and every kit firmware image needs it. The decoder test ("every RV32IM encoding
+  decoder lacks it and every firmware image needs it. The decoder test ("every RV32IM encoding
   decodes correctly") covers it.
 
 
@@ -99,4 +99,4 @@ Checked on the gcc build (commit after spec-v1.0) by reading the sources and the
 
 Consequence: the hardware rule "loads to x0 still access memory" stays (lab 5A obeys it; the
 RTL keeps it), but no current program relies on it. PROTOCOL.md v1.1 and interfaces.md
-1.0.1 reworded accordingly. Signed off by Divyam on 16 Oct 2026.
+1.0.1 reworded accordingly.

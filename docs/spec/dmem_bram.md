@@ -41,4 +41,4 @@ hex file; synthesis report shows RAMB36 only (32). PASS = 0 mismatches.
 ## Change log
 | Version | Date | Change |
 | --- | --- | --- |
-| 1.0 | 16 Oct 2026 | First version, approved by Divyam |
+| 1.0 | 16 Oct 2026 | First version |

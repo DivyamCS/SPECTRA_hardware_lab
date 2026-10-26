@@ -1,4 +1,4 @@
-"""run_all.py - every software check in the kit, one command (Windows, macOS, Linux).
+"""run_all.py - every software check, one command (Windows, macOS, Linux).
 
     python tests/run_all.py          about 1-3 minutes
 
@@ -242,7 +242,7 @@ print("11. dashboard host")
 r = run([PY, os.path.join("host", "spectra_host.py"), "--sim", "00f7", "--runs", os.path.join(TMP, "runs")])
 check("simulated run through the host, checksum OK", r.returncode == 0, r.stdout.strip())
 
-# fallback kit: the release's board recording, replayed and served with no board
+# fallback: the release's board recording, replayed and served with no board
 rec = os.path.join(ROOT, "build", "releases", "fpga-v1", "board", "demo_uart.bin")
 if os.path.exists(rec):
     import json as _json

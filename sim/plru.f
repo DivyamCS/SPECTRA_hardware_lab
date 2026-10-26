@@ -1,3 +1,3 @@
-# Hiya's 4-way tree PLRU and her testbench
+# plru (4-way tree PLRU) and its directed testbench
 rtl/mem/plru.v
 tb/tb_plru.v

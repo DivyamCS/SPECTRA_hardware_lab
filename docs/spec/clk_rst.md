@@ -43,5 +43,5 @@ reset from BTNC: active high, held until the MMCM locks, synchronised to the 50 
 ## Change log
 | Version | Date | Change |
 | --- | --- | --- |
-| 1.0 | 16 Oct 2026 | First version, approved by Divyam |
+| 1.0 | 16 Oct 2026 | First version |
 | 1.0.1 | 16 Oct 2026 | Fully synchronous reset (2-flop synchroniser of `btn_rst` or `!locked`; `btn_rst` now synchronised in vio_hook), after DRC REQP-1839/1840 and CDC-7 on the first full FPGA build. |

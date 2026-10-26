@@ -3,8 +3,7 @@
 From `fw/build/demo/demo.lst`, firmware built with xPack riscv-none-elf-gcc 15.2.0 -O2
 (commit 7b5fa38 onwards). The loop is `for j: c[j] += a * b[j]` in `matmul_run` (fw/matmul.c).
 
-**Inner loop: 0xAD4-0xAF0, 8 instructions** (the kit's zig build had 10 instructions at 0xA04;
-the slides' timing diagram draws 10 at 0x880).
+**Inner loop: 0xAD4-0xAF0, 8 instructions** (an earlier zig build had 10 instructions at 0xA04).
 
 | Address | Instruction | Meaning |
 | --- | --- | --- |

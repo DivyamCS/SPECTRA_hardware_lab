@@ -41,6 +41,6 @@ the board). PASS = all checks.
 ## Change log
 | Version | Date | Change |
 | --- | --- | --- |
-| 1.0 | 16 Oct 2026 | First version, approved by Divyam |
+| 1.0 | 16 Oct 2026 | First version |
 | 1.0.1 | 16 Oct 2026 | Pin synchronisers before the override mux (CDC-10 / CDC-7 on the first full FPGA build); the testbench named here written (stub VIO). |
-| 1.1 | 17 Oct 2026 | VIO input probe 4 = `seg7_txt` (32 bits), so scripts/board.tcl reads the display's labels back. Divyam's request (17 Oct, demo): labelled 7-segment tour. Approved by Divyam (his request) |
+| 1.1 | 17 Oct 2026 | VIO input probe 4 = `seg7_txt` (32 bits), so scripts/board.tcl reads the display's labels back, for the labelled 7-segment tour |

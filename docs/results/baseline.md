@@ -21,7 +21,7 @@ LUT 2,593; that run's image is not recorded, and the data memory is LUTRAM whose
 on its initial contents, so the difference was not investigated further. This is not a 50 MHz
 core result; that comes with the SPECTRA top.
 
-## Board behaviour (observed by Divyam)
+## Board behaviour (observed)
 
 Reset is on J15 = SW0, as in the lab. With SW0 up, all LEDs are off (fetch PC = 0). With SW0
 down, LED[15:0] = fetch PC steps up by 4 once a second; the first lit pattern is LED2 (PC 4),
