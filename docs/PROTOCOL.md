@@ -92,8 +92,8 @@ not change the blanking (so "dn0." followed by 368 shows "dn0.  368"):
 | SW6:5 | PROGRAM | 00 Game of Life, 01 Mandelbrot halves, 10 Mandelbrot interleaved, 11 MatMul |
 | SW7 | IC | 1 = I-caches on; 0 = every fetch is a one-word memory burst |
 | SW8 | - | reserved (ignored); the D-cache is PLRU, the I-cache FIFO |
-| SW9 | WPOL | 0 = write-back/write-allocate, 1 = write-through/no-allocate |
-| SW13:10 | WAYS | D-cache way enable mask; 0000 = all four |
+| SW9 | - | reserved (ignored); the D-cache is always write-back / write-allocate |
+| SW13:10 | - | reserved (ignored); all four D-cache ways are always used |
 | SW15:14 | DISPLAY | 7-segment counter after the run (read live) |
 
 Buttons: BTNC = reset. After a run (the program runs once; the display only shows the counters
@@ -151,17 +151,16 @@ The streamer never makes a core wait:
 | Size, ways, line | 4 KB, 4-way, 16 B | 2 KB, 2-way, 16 B |
 | Sets, index, tag | 64, addr[9:4], addr[31:10] | 64, addr[9:4], addr[31:10] |
 | Replacement | PLRU (3-bit tree) | FIFO (pointer per set) |
-| Writes | WB-WA or WT-NA, SW9 | read-only |
-| Way mask | SW13:10, only enabled ways are ever filled | - |
+| Writes | write-back / write-allocate | read-only |
 
-* Miss: the lowest-numbered invalid enabled way is filled; otherwise the policy picks.
+* Miss: the lowest-numbered invalid way is filled; otherwise the policy picks.
 * PLRU (D-cache): b0 = 0 victim in ways 0-1, 1 victim in ways 2-3; b1 picks within 0-1, b2 within 2-3. Every
   hit or fill of way w sets the bits to point away from w. A subtree with no enabled way is never
   chosen; a disabled leaf gives its sibling.
 * FIFO (I-cache): the pointer names the next victim and moves to the other way after each fill;
   hits do not move it.
-* Write-through/no-allocate: a store hit updates the line and memory, never dirty; a store miss
-  writes memory only. Loads allocate in both policies.
+* Write-back / write-allocate: a store hit writes the line and sets it dirty; a store miss fills the
+  line, then writes it; a dirty line is written back when it is evicted.
 
 ## 7. Timing (RTL targets; rv32sim approximates them)
 
@@ -170,11 +169,11 @@ The streamer never makes a core wait:
 | Data access, D-cache hit or MMIO | 2 in MEM/WB (1 stall) |
 | D-cache miss, clean victim | 2 + (L + 4) |
 | D-cache miss, dirty victim | 2 + (L + 4) + (L + 4) |
-| Uncached data access (DC = 0), write-through store | 2 + (L + 1) |
+| Uncached data access (DC = 0) | 2 + (L + 1) |
 | I-cache hit | no stall |
 | I-cache miss | L + 4 extra |
 | Fetch with IC = 0 | L + 1 extra per instruction |
-| MUL / DIV | 3 / up to 34 cycles in EX |
+| MUL / DIV | 3 / 34 cycles in EX (fixed, for every operand) |
 | Taken branch, JAL, JALR | 2 extra (2 squashed) |
 | FWD = 0, dependence at distance 1 | 1 extra |
 | Data port busy (other core) | wait until free; counted in ARB_WAIT |

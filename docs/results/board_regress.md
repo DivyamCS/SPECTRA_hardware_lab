@@ -12,6 +12,7 @@
 Recorded with the fpga-v1 bitstream, before the I-cache moved from LRU to FIFO and SW8 (D-cache FIFO)
 was retired; the lists have since dropped the FIFO settings (one guide case, one test setting).
 The current RTL reran the demo and test lists on the board with identical results: board_icache_fifo.md.
+Since then the D-cache is write-back only: the write-through and 1-way settings below are no longer in the lists.
 Every number here is a board measurement; rv32sim's cycle counts in the CSVs are its approximate
 timing model.
 

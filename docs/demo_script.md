@@ -8,7 +8,7 @@ Set-up before the audience arrives: program the board with build/releases/fpga-v
 laptop running `python host/spectra_host.py --port COMn`, dashboard (http://localhost:8000) open
 on the Live tab, Playback "slow: about 5 s". The Demo guide tab lists every case with its switch
 positions. Switches not listed in a step stay down (0). Common to every step: SW0 FWD = 1,
-SW4:3 LAT = 10 (L = 8), SW7 IC = 1, SW8 = 0 (reserved), SW9 write-back, SW13:10 = 0000 (all 4 ways).
+SW4:3 LAT = 10 (L = 8), SW7 IC = 1, SW8 to SW13 = 0 (reserved).
 
 After every run the 7-segment display tours the results, 3 s per item, with labels: **Cy**
 cycles in thousands, then per core **IH** I-cache hit %, **dH** D-cache hit %, **CPI**; with two

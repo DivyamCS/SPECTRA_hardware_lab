@@ -2,8 +2,8 @@
 
     python tb/commit_trace/run.py
 
-1. turns rv32sim reference traces (tb/ref/trace_t_hazard_fwd1.txt, trace_t_mext_fwd1.txt and a
-   fresh rv32sim trace of t_lab5a, which has loads into x0) into retire events: PC, INSTR, register write, load address, store address and data. Store
+1. traces t_hazard, t_mext (config 0093, as tools/make_refs.py does) and t_lab5a, which has
+   loads into x0, with rv32sim now, and turns the traces into retire events: PC, INSTR, register write, load address, store address and data. Store
    data gets random bits above the access size (from the instruction's funct3), as rs2 has;
 2. runs tb_commit_trace in xsim (scripts/sim.tcl, file list sim/commit_trace.f with SIM defined);
 3. requires trace_rtl0.txt to equal the reference byte for byte (both simulators write the
@@ -22,7 +22,8 @@ ROOT = os.path.dirname(os.path.dirname(HERE))
 sys.path.insert(0, os.path.join(ROOT, "tools"))
 import simpath  # noqa: E402
 
-REFS = ["tb/ref/trace_t_hazard_fwd1.txt", "tb/ref/trace_t_mext_fwd1.txt"]
+# rv32sim traces made by this test (tb/ref/ is not committed, so a fresh clone has none)
+TRACES = [("t_hazard", "fw/build/t_hazard"), ("t_mext", "fw/build/t_mext"), ("t_lab5a", "tb/lab5a/image")]
 
 
 def commit_dir():
@@ -67,15 +68,17 @@ def main():
     out = os.path.join(commit_dir(), "commit_trace")
     vec = os.path.join(out, "vec")
     os.makedirs(vec, exist_ok=True)              # every file below is rewritten, nothing deleted
-    # t_lab5a has loads into x0, which the committed references lack: trace it now
-    lab_prefix = os.path.join(out, "lab5a")
-    subprocess.run([simpath.find_sim(), "-c", "0093", "-t", lab_prefix,
-                    os.path.join(ROOT, "tb", "lab5a", "image")], cwd=ROOT, capture_output=True)
-    if not os.path.exists(lab_prefix + "0.txt"):
-        sys.exit("FAIL commit_trace: rv32sim wrote no t_lab5a trace")
+    traces = []
+    for name, image in TRACES:
+        prefix = os.path.join(out, name + "_")
+        subprocess.run([simpath.find_sim(), "-c", "0093", "-t", prefix, os.path.join(ROOT, image)],
+                       cwd=ROOT, capture_output=True)
+        if not os.path.exists(prefix + "0.txt"):
+            sys.exit("FAIL commit_trace: rv32sim wrote no %s trace" % name)
+        traces.append(prefix + "0.txt")
     ref_lines, ref_bytes = [], b""
-    for r in REFS + [lab_prefix + "0.txt"]:
-        raw = open(os.path.join(ROOT, r), "rb").read()  # as rv32sim wrote it (CRLF on Windows)
+    for r in traces:
+        raw = open(r, "rb").read()  # as rv32sim wrote it (CRLF on Windows)
         ref_bytes += raw
         ref_lines += raw.decode().splitlines()
     rnd = random.Random(47)
@@ -118,8 +121,8 @@ def main():
         print(t.stdout + t.stderr)
         sys.exit("FAIL commit_trace: tracecmp")
     n_x0 = sum(1 for ln in ref_lines if " ld " in ln and " x" not in ln)
-    print("PASS commit_trace: %d lines identical to rv32sim's (%s, t_lab5a; %d loads into x0)"
-          % (len(ref_lines), ", ".join(REFS), n_x0))
+    print("PASS commit_trace: %d lines identical to rv32sim's (%s; %d loads into x0)"
+          % (len(ref_lines), ", ".join(n for n, _ in TRACES), n_x0))
 
 
 if __name__ == "__main__":

@@ -42,7 +42,7 @@ $(BUILD)/gol.o: gol/gol.c | $(BUILD)
 	$(CC) $(CFLAGS) -c $< -o $@
 
 $(BUILD)/gol.elf: $(STARTUP) $(BUILD)/gol.o
-	$(CC) $(CFLAGS) $(LDFLAGS) $^ -o $@
+	$(CC) $(CFLAGS) $(LDFLAGS) $^ -o $@ -lgcc
 
 $(BUILD)/gol.hex: $(BUILD)/gol.elf
 	$(OBJCOPY) -O verilog --verilog-data-width=4 $< $@
@@ -61,7 +61,7 @@ $(BUILD)/matmul.o: matmul/matmul.c | $(BUILD)
 	$(CC) $(CFLAGS) -c $< -o $@
 
 $(BUILD)/matmul.elf: $(STARTUP) $(BUILD)/matmul.o
-	$(CC) $(CFLAGS) $(LDFLAGS) $^ -o $@
+	$(CC) $(CFLAGS) $(LDFLAGS) $^ -o $@ -lgcc
 
 $(BUILD)/matmul.hex: $(BUILD)/matmul.elf
 	$(OBJCOPY) -O verilog --verilog-data-width=4 $< $@
