@@ -2,7 +2,6 @@
 
 `define OPCODE      6:0
 `define FUNC3       14:12
-`define FUNC7       31:25
 `define SUBTYPE     30
 `define RD          11:7
 `define RS1         19:15
@@ -20,12 +19,6 @@ localparam  [ 6: 0] LUI     = 7'b0110111,        // U-type
                     STORE   = 7'b0100011,        // S-type
                     ARITHI  = 7'b0010011,        // I-type
                     ARITHR  = 7'b0110011;        // R-type
-
-// FUNC7, INST[31:25]
-localparam  [ 6: 0] FUNCT7_BASE = 7'b0000000,       // Base Integer R-type
-                    FUNCT7_ALT  = 7'b0100000,       // SUB, SRA
-                    FUNCT7_M    = 7'b0000001;       // RV32M Multiplication & Division
-
 
 
 // FUNC3, INST[14:12], INST[6:0] = 7'b1100011
@@ -57,6 +50,9 @@ localparam  [ 2: 0] ADD     = 3'b000,    // inst[30] == 0: ADD, inst[31] == 1: S
                     SR      = 3'b101,    // inst[30] == 0: SRL, inst[31] == 1: SRA
                     OR      = 3'b110,
                     AND     = 3'b111;
+localparam  [ 6: 0] AUIPC   = 7'b0010111;        // U-type      
+// M extension: opcode ARITHR (0110011) with funct7 = 0000001, FUNC3 selects the operation
+localparam  [ 6: 0] FUNCT7_M = 7'b0000001;             
 
 // FUNC3, INST[14:12], INST[6:0] = 7'b0110011 (ARITHR), INST[31:25] = 7'b0000001 (RV32M)
 localparam  [ 2: 0] MUL        = 3'b000,    // Signed x Signed (lower 32-bits)
@@ -67,3 +63,8 @@ localparam  [ 2: 0] MUL        = 3'b000,    // Signed x Signed (lower 32-bits)
                     DIVU       = 3'b101,    // Unsigned division
                     REM        = 3'b110,    // Signed remainder
                     REMU       = 3'b111;    // Unsigned remainder
+
+// ALU operation codes used by the SPECTRA decoder and execute stage
+localparam  [ 3: 0] ALU_ADD = 4'd0,  ALU_SUB  = 4'd1,  ALU_SLL = 4'd2,  ALU_SLT = 4'd3,
+                ALU_SLTU = 4'd4, ALU_XOR  = 4'd5,  ALU_SRL = 4'd6,  ALU_SRA = 4'd7,
+                ALU_OR  = 4'd8,  ALU_AND  = 4'd9,  ALU_PASS_B = 4'd10;
