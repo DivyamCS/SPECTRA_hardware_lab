@@ -2,9 +2,8 @@
 
     python tb/timing/run.py [N] [--write]
 
-The slides' timing diagram draws an older build (10 instructions at 0x880); this build's inner
-loop is 8 instructions at 0xAD4 (docs/results/matmul_loop.md). Divyam decided (16 Oct 2026) to
-check this loop against a pipeline model; the slides are redrawn.
+The MatMul inner loop is 8 instructions at 0xAD4 (docs/results/matmul_loop.md); it is checked
+against a pipeline model built from the documented rules.
 
 1. rv32sim -c 00f3 (MatMul, FWD, DC write-back PLRU, IC, L = 8, one core): the executed
    instruction stream (-t) and the data-access trace (-m) of the demo image;
@@ -205,8 +204,7 @@ def main():
                "RTL (tb_core_dc with TIMING_DUMP, CONFIG 0x00F3: FWD, D-cache write-back PLRU, I-cache, L = 8,",
                "one core) against a pipeline model built from the documented rules (tb/timing/run.py). C1 =",
                "the %d-th time inside the run that the loop's first instruction 0xAD4 has just entered ID" % n,
-               "with a bubble in EX (after the taken bne). The slides' diagram (older build, 10 instructions",
-               "at 0x880) is redrawn from this loop (Divyam's decision, 16 Oct 2026).", "",
+               "with a bubble in EX (after the taken bne).", "",
                "Result: all 30 rows equal, every field. PC in hex, - = empty stage (bubble).", ""] + table + [
                "", "D-cache results of the accesses in the window (cache_model.py, = the RTL's pulses): " +
                ", ".join("0x%x %s" % a for a in accs[:12]), ""]
