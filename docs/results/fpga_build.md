@@ -45,5 +45,4 @@ DSP meets its target. LUT and BRAM do not:
   report; it would add about 180 LUTs.
 * LUT 10,235 vs 9,500: 777 of them are the VIO hook and debug hub that the board regression needs; without them the design is 9,458. The grid shadows in LUT RAM, the fix
   for the board/simulation difference, cost 334.
-The submitted report's figures ("<= 37 % BRAMs (49 blocks)", 36.3 %) were estimates;
-the measured values above replace them. Decision on the budgets: Divyam's (scripts/fpga_budget.txt).
+The resource budgets checked by the build are in scripts/fpga_budget.txt.

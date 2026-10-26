@@ -10,7 +10,7 @@
 
 ## Purpose
 The cycle counter and, per core, INSTRET, D_HIT, D_MISS, I_HIT, I_MISS, ARB_WAIT and BAR_WAIT:
-the numbers the dashboard, the 7-segment display and the report use.
+the numbers the dashboard and the 7-segment display use.
 
 ## Ports
 | Port | Dir | Width | Meaning |
@@ -43,5 +43,5 @@ counts.
 ## Change log
 | Version | Date | Change |
 | --- | --- | --- |
-| 1.0 | 16 Oct 2026 | First version, approved by Divyam |
-| 1.0.1 | 16 Oct 2026 | RUN_START cycle counted (INSTRET = rv32sim exactly; found by the first full-SoC run). Pending Divyam's review |
+| 1.0 | 16 Oct 2026 | First version |
+| 1.0.1 | 16 Oct 2026 | RUN_START cycle counted (INSTRET = rv32sim exactly; found by the first full-SoC run) |

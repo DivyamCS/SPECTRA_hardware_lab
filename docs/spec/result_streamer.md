@@ -55,5 +55,5 @@ random UART side. PASS = all checks.
 ## Change log
 | Version | Date | Change |
 | --- | --- | --- |
-| 1.0 | 16 Oct 2026 | First version, approved by Divyam |
+| 1.0 | 16 Oct 2026 | First version |
 | 1.0.1 | 16 Oct 2026 | Grid shadows forced to distributed RAM (Vivado had used block RAM: board read-during-write differed from RTL); shadows start at 0; ROW address row * 192 as shifts (no DSP); unit testbench. |

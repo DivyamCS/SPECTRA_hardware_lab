@@ -40,13 +40,12 @@ counter and every byte the laptop receives. Two-core speedups measured on the bo
 1.82x, Mandelbrot halves 1.97x, interleaved 1.99x, MatMul 1.80x.
 
 Not covered here: the dashboard window itself with the board live (`python host/spectra_host.py
---port COM8`, http://localhost:8000; Divyam to look), the 7-segment browser on the board (step
-118), the test programs on the board, L = 5, 6, 10, the board regression
+--port COM8`, http://localhost:8000), the 7-segment browser on the board, the test programs on the board, L = 5, 6, 10, the board regression
 over the settings.
 
 ## 7-segment tour with labels (17 Oct 2026, bitstream build/0cd48e2/impl/top_fpga)
 
-Divyam's request: after each run the display tours the run's counters, 3 s per item, with
+After each run the display tours the run's counters, 3 s per item, with
 labels. Board, SW = 0x00f7 (MatMul, 2 cores), read through the VIO every 3 s (SEG7, SEG7_DP and
 SEG7_TXT decoded with tools/seg7_model.py):
 

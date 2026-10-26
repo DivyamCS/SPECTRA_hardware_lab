@@ -1,10 +1,10 @@
-# Fallback kit for the demo
+# Fallback for the demo
 
 What to do on the day if something fails. Every command runs from the repository root
 (`C:\fpga\spectra`, or a copy of it on another laptop). Tested: tests/run_all.py section 11
 replays the board recording and serves it from the dashboard with no board connected.
 
-## On the USB stick (Divyam copies these; nothing else is needed)
+## On the USB stick (nothing else is needed)
 
 | File | Why |
 | --- | --- |
@@ -57,7 +57,7 @@ replays one at a chosen speed. The Simulate tab still runs the simulated board.
 
 Programming needs Vivado (Case 1). Everything else (dashboard, replay, simulator) is Python only.
 
-## The demo in the QSPI flash: power-on without a laptop (programmed 17 Oct, Divyam's go-ahead)
+## The demo in the QSPI flash: power-on without a laptop (programmed 17 Oct)
 
 The board loads the demo from its QSPI flash at every power-on: switches, BTNC and the 7-segment
 tour work with no laptop at all. Programmed and verified on 17 Oct (flash/program_flash.log); with

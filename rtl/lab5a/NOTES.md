@@ -1,8 +1,11 @@
 # Lab 5A files: the starting point
 
-Source: Divyam's repo https://github.com/DivyamCS/SPECTRA_hardware_lab (commit d335f25,
-"Added 3-stage pipeline files ( initial )"), received 16 Oct 2026. Files are copied here unchanged;
-`SHA256SUMS.txt` proves they are byte-identical.
+Source: the course's lab 5A files, first committed to this repository in d335f25
+("Added 3-stage pipeline files ( initial )"), 16 Oct 2026. `SHA256SUMS.txt` holds the hashes of
+those original files. They are copied here unchanged except two bug fixes, each marked
+"SPECTRA fix" in the code: the SRA / SRAI sign in execute.v and a boot bubble in pipe.v (the
+first instruction ran twice after reset). opcode.vh is not copied: rtl/core/opcode.vh keeps the
+lab definitions unchanged and adds AUIPC, the M extension and the ALU codes.
 
 | File | Contents |
 | --- | --- |
@@ -14,7 +17,7 @@ Source: Divyam's repo https://github.com/DivyamCS/SPECTRA_hardware_lab (commit d
 | tb_pipeline.v | 100 MHz clock, reset, 20 us run; no self-check |
 | top_fpga.v | Board top: 100 MHz divided to a 1 Hz core clock; LED[15:0] = PC[15:0] |
 | constraint.xdc | clk E3; reset J15; LED0-15 |
-| opcode.vh | RV32I opcode and funct3 constants (no M extension yet) |
+| opcode.vh (in rtl/core) | RV32I opcode and funct3 constants; the M extension added later |
 
 Checks (Verilator 5.48):
 
@@ -25,7 +28,7 @@ Checks (Verilator 5.48):
 What this meant for SPECTRA (details in `docs/spec/core_gap.md`):
 
 1. **No test program or golden outputs.** `imem.hex` and `dmem.hex` are not in the repo, and the
-   testbench has no checker. SPECTRA therefore builds an RV32I-only test image with the kit's
+   testbench has no checker. SPECTRA therefore builds an RV32I-only test image with the firmware
    toolchain, runs it on the lab core (with a 4 KB-wrapped address map) and compares the commit
    trace with `rv32sim`, instead of diffing against lab golden outputs. 
 2. **Reset is on J15, which is switch SW0 on the Nexys A7.** SPECTRA uses SW0 as FWD and BTNC

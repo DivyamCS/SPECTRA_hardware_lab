@@ -36,4 +36,4 @@ DUAL = 0: core 1 stays in reset, `ncores` = 1; DUAL = 1: both release in the sam
 ## Change log
 | Version | Date | Change |
 | --- | --- | --- |
-| 1.0 | 16 Oct 2026 | First version, approved by Divyam |
+| 1.0 | 16 Oct 2026 | First version |
