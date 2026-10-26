@@ -1,5 +1,14 @@
 `timescale 1ns / 1ps
 `default_nettype none
+// tb_mmio_bus - driven by tb/mmio/run.py (mmio_map.mem = the register table of
+// PROTOCOL.md section 3, "offset code access core index"). mmio_bus with the real lock_barrier
+// and perf_counters. For every register: ready in the cycle of sel; a read (R) returns the
+// expected value - CORE_ID for both owners, NCORES, CONFIG, SWITCHES, debounced BUTTONS, LOCK
+// test-and-set, BARRIER 0, CYCLES and all 14 per-core counters after a run with known event
+// counts; a write (W) has its effect - RUN_START / RUN_STOP, LEDS, SEG7, SEG7_DP, a 1-cycle
+// pulse with data and owner for GEN_DONE, CHECKSUM, ROW_DONE, MROW_DONE, LOCK release by 0.
+// Reads of W-only registers return 0; writes to R-only registers change nothing; every
+// offset not in the map reads 0 and a write there changes nothing. Prints one PASS/FAIL line.
 
 module tb_mmio_bus;
 
@@ -29,11 +38,9 @@ module tb_mmio_bus;
         .leds(leds), .seg7_val(seg7_val), .seg7_dp(seg7_dp), .seg7_txt(seg7_txt),
         .st_gen_done(st_gen_done), .st_checksum(st_checksum), .st_row_done(st_row_done),
         .st_mrow_done(st_mrow_done), .st_data(st_data), .st_owner(st_owner));
-        
     lock_barrier u_lb (.clk(clk), .rst(rst), .ncores(ncores), .lock_rd(lock_rd), .lock_wr0(lock_wr0),
         .owner(owner), .lock_rdata(lock_rdata), .bar_req(2'b00), .bar_release(),
         .ev_barwait0(), .ev_barwait1());
-        
     // events into the counters, driven by the TB (ev[n] = pulse for counter index n)
     reg  [15:0] ev = 0;
     perf_counters u_pc (.clk(clk), .rst(rst), .run_start(run_start), .run_stop(run_stop),
@@ -74,11 +81,9 @@ module tb_mmio_bus;
             @(negedge clk); sel = 0; we = 0;
         end
     endtask
-    
     task rd_expect(input [7:0] o, input ow, input [31:0] want, input [8*24-1:0] what);
         begin acc(0, o, 0, ow); checks = checks + 1; if (got !== want) fail(what, got, want); end
     endtask
-    
     task outputs_unchanged(input [15:0] l, input [26:0] s, input [7:0] d);
         begin
             checks = checks + 2;
@@ -96,10 +101,9 @@ module tb_mmio_bus;
     reg mapped [0:63];
     integer evcount [0:15];
     reg [15:0] l_s; reg [26:0] s_s; reg [7:0] d_s;
-    
     initial begin
         for (i = 0; i < 64; i = i + 1) mapped[i] = 0;
-        fd = $fopen("C:/Users/User/OneDrive/Documents/SPECTRA-hardware/SPECTRA_hardware_lab/mmio_map.mem", "r");
+        fd = $fopen("mmio_map.mem", "r");
         while (!$feof(fd)) begin
             r = $fscanf(fd, "%h %h %h %h %h\n", a, b, c, d, e);
             if (r == 5) begin mo[nm] = a; mc[nm] = b; ma[nm] = c; mk[nm] = d; mj[nm] = e; mapped[a >> 2] = 1; nm = nm + 1; end
@@ -107,27 +111,22 @@ module tb_mmio_bus;
         $fclose(fd);
         clear_pulses;
         repeat (2) @(negedge clk); rst = 0;
-        
         // buttons settle through the debouncer
         btn = 4'b1010; repeat (20) @(negedge clk);
-        
         // a run with known counts: counter n gets 3 + n events
         acc(1, 8'h14, 0, 0);                                     // RUN_START (offset from the map below too)
         for (i = 0; i < 16; i = i + 1) evcount[i] = (i == 0 || i == 8) ? 0 : 3 + i;
-        
         // the core counters together (counter n gets 3 + n pulses) ...
         for (k = 0; k < 20; k = k + 1) begin
             @(negedge clk);
             for (i = 1; i < 16; i = i + 1)
                 ev[i] = (i != 8 && i != 2 && i != 3 && i != 10 && i != 11) && (k < 3 + i);
         end
-        
         // ... and the D-cache ones one at a time (the D-cache gives one event per cycle)
         for (i = 2; i < 12; i = i + 1) if (i == 2 || i == 3 || i == 10 || i == 11)
             for (k = 0; k < 3 + i; k = k + 1) begin @(negedge clk); ev = 16'd1 << i; end
         @(negedge clk); ev = 0;
         acc(1, 8'h18, 0, 0);                                     // RUN_STOP
-        
         // pass 0: every register but RUN_START / RUN_STOP (which clear and restart the counters);
         // pass 1: those two
         for (k = 0; k < 2; k = k + 1)

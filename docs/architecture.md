@@ -33,7 +33,7 @@ The 3-stage pipeline (IF/ID, EX, MEM/WB) of core 0; core 1 is the same RTL with 
 | Hazard priority | freeze (data port or fetch waiting) > MUL/DIV hold > squash > interlock |
 | Forwarding (SW0) | MEM/WB → EX for rs1, rs2 and store data; off: 1 cycle per distance-1 dependence |
 | Branches, JAL, JALR | resolved in EX; the 2 younger instructions are squashed |
-| MUL / DIV | 3 cycles on DSP48 / up to 34 cycles, EX holds |
+| MUL / DIV | 3 cycles on DSP48 / 34 cycles (fixed), EX holds |
 | Illegal instruction | decodes as a no-op (writes and stores nothing) |
 
 ## Part 3 · Data side
@@ -50,7 +50,7 @@ its controller, the data-side latency model and DMEM, the MMIO registers and the
 | D-cache hit, MMIO | 2 (1 stall) |
 | D-cache miss, clean victim | 2 + (L + 4) |
 | D-cache miss, dirty victim | 2 + (L + 4) + (L + 4) |
-| DC = 0, or a write-through store | 2 + (L + 1) |
+| DC = 0 (every access one word) | 2 + (L + 1) |
 | Other core on the port | wait until it is free (counted as ARB_WAIT) |
 
 L is the memory latency from SW4:3: 5, 6, 8 or 10 cycles.

@@ -38,7 +38,7 @@ Rules:
    sign or zero extension is done in the core (MEM/WB), not by the slave.
 3. Timing seen by the core, counting the cycle `req` rises as cycle 1: D-cache hit or MMIO
    access -> `ready` in cycle 2 (2 cycles in MEM/WB, 1 stall); D-cache miss, clean victim ->
-   cycle 2 + (L + 4); dirty victim -> 2 + 2(L + 4); uncached (DC = 0) or write-through store ->
+   cycle 2 + (L + 4); dirty victim -> 2 + 2(L + 4); uncached (DC = 0) ->
    2 + (L + 1). Waiting for the arbiter adds cycles before these (counted as ARB_WAIT).
 4. Loads to x0 still issue a request (a BARRIER read into x0 must still wait; PROTOCOL.md v1.1).
 5. Address map (addr_decode): 0x1000_0000-0x1001_FFFF -> D-cache; 0x2000_0000-0x2000_00FF ->
@@ -57,7 +57,7 @@ Between a cache (master) and its `mem_delay` (slave), which fronts the BRAM.
 | `addr` | 30 | master -> slave | word address `[31:2]` of the first word |
 | `nwords` | 1 | master -> slave | 0 = 1 word, 1 = 4 words (a 16-byte line) |
 | `wdata` | 32 | master -> slave | write word, advanced by the master on each `wready` |
-| `be` | 4 | master -> slave | byte enables of a 1-word write (sub-word store with DC = 0 or write-through); 1111 for line writes; ignored on reads |
+| `be` | 4 | master -> slave | byte enables of a 1-word write (sub-word store with DC = 0); 1111 for line writes; ignored on reads |
 | `rvalid` | 1 | slave -> master | `rdata` holds the next read word |
 | `rdata` | 32 | slave -> master | read word |
 | `wready` | 1 | slave -> master | the slave took `wdata` this cycle |
@@ -110,7 +110,7 @@ Rules:
 Rules:
 1. `cfg` changes only in the cycle reset releases and is constant for the whole run.
 2. Field map (PROTOCOL.md section 4): [0] FWD, [1] DC, [2] DUAL, [4:3] LAT, [6:5] PROGRAM,
-   [7] IC, [8] reserved, [9] WPOL, [13:10] WAYS (0000 = all four), [15:14] DISPLAY.
+   [7] IC, [13:8] reserved, [15:14] DISPLAY.
 3. The live switch value for the SWITCHES register is a separate signal (synchronised, not
    sampled), so DISPLAY can be changed after a run.
 

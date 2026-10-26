@@ -3,7 +3,7 @@
 | Item | Value |
 | --- | --- |
 | Files | rtl/top_fpga.v (board pins, VIO, clk_rst), rtl/soc_top.v (everything clocked by `clk`, no pins) |
-| Constraints | constraints/nexys_a7.xdc (the lab's constraint.xdc stays for the baseline) |
+| Constraints | rtl/board/nexys_a7.xdc (the lab's rtl/lab5a/constraint.xdc stays for the baseline) |
 | Testbench | tb/tb_top.v drives soc_top |
 | Interfaces | all four |
 | Removal parameter | passes `HAS_*` down to the modules |

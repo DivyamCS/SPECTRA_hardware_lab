@@ -63,8 +63,8 @@ setting, up to 2 h per Game of Life setting); every one of the 120 settings runs
 the board regression instead, from scripts/board_random_106.txt (column xsim marks the 55
 already passed here). The board checks checksum, CONFIG and every UART packet against rv32sim, not
 the instruction trace. Game of Life's RTL in xsim is covered at fixed settings on the whole SoC
-(0093 one core, 0097 two cores) and in the single-core table (3 Game of Life settings: DC off,
-write-back and write-through; every
+(0093 one core, 0097 two cores) and in the single-core table (Game of Life with the D-cache off and
+on; every
 one golden with 0 trace differences, docs/results/sim_single.md).
 
 Setting 14 (10d6, two cores, interleaved): 7,265,297 run cycles (STATS), rv32sim 7,265,316; the

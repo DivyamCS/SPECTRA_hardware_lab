@@ -111,7 +111,7 @@ def generate_table():
     header_line = "| " + " | ".join(h.ljust(col_widths[h]) for h in headers) + " |"
     sep_line    = "|-" + "-|-".join("-" * col_widths[h] for h in headers) + "-|"
 
-    print("\n## 📊 CAMEO Architectural Ablation Study Results\n")
+    print("\n## CAMEO Architectural Ablation Study Results\n")
     print(header_line)
     print(sep_line)
     for row in table_rows:
