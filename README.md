@@ -20,7 +20,7 @@ in parallel.
 [![FPGA](https://img.shields.io/badge/FPGA-Artix--7_XC7A100T-ED1C24?logo=amd&logoColor=white)](https://digilent.com/reference/programmable-logic/nexys-a7/start)
 [![Vivado](https://img.shields.io/badge/Vivado-2025.2-ED1C24?logo=amd&logoColor=white)](https://www.amd.com/en/products/software/adaptive-socs-and-fpgas/vivado.html)
 [![Timing](https://img.shields.io/badge/Timing-met_@_50_MHz-2ea44f)](#resource-utilization)
-[![Tests](https://img.shields.io/badge/Tests-41_RTL_·_84_software_·_263_board_runs-2ea44f)](#verification)
+[![Tests](https://img.shields.io/badge/Tests-41_RTL_·_71_software_·_263_board_runs-2ea44f)](#verification)
 [![Python](https://img.shields.io/badge/Python-3.9+-3776AB?logo=python&logoColor=white)](host/)
 
 [Overview](#overview) · [Architecture](#architecture) · [Results](#measured-results) · [Quick start](#quick-start) · [Board reference](#board-reference) · [Verification](#verification) · [Project structure](#project-structure)
@@ -97,7 +97,7 @@ SW = 0x0010   Game of Life, every feature off       604,166,137 cycles  12.08 s 
 | **Measurement** | 15 hardware counters (cycles; per core: instructions, I / D hits and misses, arbiter and barrier wait) |
 | **Workloads** | Game of Life 64×64 · Mandelbrot 192×144, split by halves or by interleaved rows · MatMul 32×32 · 5 test programs |
 | **Output** | Result streamer, UART 1 Mbaud, CRC-checked packets · labelled 7-segment display · live web dashboard |
-| **Resources** | 10,329 LUT (16 %) · 53 BRAM (40 %) · 8 DSP · 50 MHz, timing met |
+| **Resources** | 10,329 LUT (16 %) · 53 BRAM (39 %) · 8 DSP · 50 MHz, timing met |
 
 ---
 
@@ -118,8 +118,8 @@ SW = 0x0010   Game of Life, every feature off       604,166,137 cycles  12.08 s 
 ## Architecture
 
 Three animated block diagrams, from the whole system down to one core and the shared data side.
-In each, the blocks and wires that one step uses light up in orange, six steps in a loop; the
-caption under the drawing names the step. Grey = lab block unchanged, orange = lab block
+In each, the blocks and wires that one step uses light up in bright orange, six steps in a loop;
+the caption under the drawing names the step. Grey = lab block unchanged, pale orange = lab block
 modified, blue = new block, amber dashed = link to another part.
 
 ### Part 1 · System
@@ -170,11 +170,11 @@ modified, blue = new block, amber dashed = link to another part.
 ## Measured results
 
 All numbers are **board measurements at 50 MHz** (release `fpga-v1`; source rows in [`docs/results/numbers.md`](docs/results/numbers.md)).
-Default configuration: forwarding, both caches (I-cache FIFO, D-cache PLRU), write-back, 4 ways, L = 8.
-fpga-v1's I-cache used 1-bit LRU; the current RTL (FIFO) was rebuilt and rerun on the board: all 115 runs
-identical to fpga-v1 ([`docs/results/board_icache_fifo.md`](docs/results/board_icache_fifo.md)).
-The team's integrated RTL (25 Oct: the members' modules, a write-back-only D-cache) passes every
-RTL test, including the cycle-exact ones, and builds with timing met; it has not been re-run on the board yet.
+Default configuration: forwarding, both caches (I-cache FIFO, D-cache write-back with PLRU), L = 8.
+fpga-v1's I-cache used 1-bit LRU; a later build with the FIFO I-cache reran all 115 demo and test
+runs on the board with identical results ([`docs/results/board_icache_fifo.md`](docs/results/board_icache_fifo.md)).
+The current RTL (write-back-only D-cache) passes every RTL test, including the cycle-exact ones,
+and builds with timing met; it has not yet been run on the board.
 
 ### Two cores
 
@@ -185,7 +185,7 @@ RTL test, including the cycle-exact ones, and builds with timing met; it has not
 | Mandelbrot, interleaved rows | 12,224,409 | 6,131,187 | 244 → 123 ms | **1.99×** |
 | MatMul (32×32) | 535,596 | 297,020 | 10.7 → 5.9 ms | **1.80×** |
 
-Mandelbrot is compute-bound (CPI 1.6, arbiter wait 0.02 %) and scales almost perfectly. Game of Life
+Mandelbrot is compute-bound (CPI 1.6, arbiter wait about 0.01 %) and scales almost perfectly. Game of Life
 and MatMul share the D-cache and the arbiter and lose part of the 2× to waiting for each other
 (arbiter wait 9 % and 14 %).
 
@@ -268,7 +268,7 @@ Program Device*. `build/releases/fpga-v1/flash/` holds a QSPI flash image for bo
 ### 3 · Build everything from source
 
 ```bash
-python scripts/preflight.py          # checks Python, Vivado, compilers and the board connection
+python scripts/preflight.py          # checks Python, Vivado and compilers (--board: also the FPGA)
 python fw/build.py                   # firmware images  -> fw/build/
 python scripts/check_all.py          # software checks + every RTL testbench in xsim
 python scripts/fpga_build.py         # synthesis, implementation, checks -> build/<commit>/impl/top_fpga/
@@ -295,8 +295,7 @@ python scripts/fpga_build.py         # synthesis, implementation, checks -> buil
 | SW4:3 | LAT | Memory latency: 00 = 5 · 01 = 6 · 10 = 8 · 11 = 10 cycles |
 | SW6:5 | PROGRAM | 00 Game of Life · 01 Mandelbrot (halves) · 10 Mandelbrot (interleaved) · 11 MatMul |
 | SW7 | IC | Private I-caches (off: every fetch goes to memory) |
-| SW8 | — | Reserved (ignored) |
-| SW9 · SW13:10 | — | Reserved (ignored) |
+| SW13:8 | — | Reserved (ignored) |
 | SW15:14 | DISPLAY | Which counter the display shows after a run (read live) |
 
 | Configuration | Switches |
@@ -316,15 +315,16 @@ python scripts/fpga_build.py         # synthesis, implementation, checks -> buil
 | **BTNL** | Display: count ↔ rate (hit %, CPI) |
 | **BTNR** | Display: core 0 ↔ core 1 |
 
-After a run the display tours the results, 3 s per value, each with its label:
+After a run the display tours the results, 3 s per value, each with its label (a two-core run,
+core 0; the digit after the label is the core):
 
 | Display | Meaning | | LED | Meaning |
 | --- | --- | --- | --- | --- |
 | `Cy 38660` | cycles, in thousands | | LED0 | run done |
-| `IH 99.99` | I-cache hit rate, % | | LED1 | checksum correct |
-| `dH 98.53` | D-cache hit rate, % | | LED2 | address-decode error |
-| `CPI 1.65` | cycles per instruction | | LED10 · LED11 | tour on · rate mode |
-| `Ar 8.98` | arbiter wait, % of cycles | | LED12 · LED13 | value in thousands · core 1 shown |
+| `IH0. 99.99` | I-cache hit rate, % | | LED1 | checksum correct |
+| `dH0. 98.53` | D-cache hit rate, % | | LED2 | address-decode error |
+| `CPI0. 1.64` | cycles per instruction (rates are truncated, not rounded) | | LED10 · LED11 | tour on · rate mode |
+| `Ar0.  8.98` | arbiter wait, % of cycles | | LED12 · LED13 | value in thousands · core 1 shown |
 
 ---
 
@@ -363,9 +363,9 @@ python scripts/regress.py dcache     # one RTL test by name
 
 | Level | What is checked | Reference | Result |
 | --- | --- | --- | --- |
-| **Module** | 33 self-checking testbenches, one per module (`tb/tb_*.v`) | spec page + Python models | all PASS |
+| **Module** | 33 self-checking testbenches (`sim/tests.txt`) | spec page + Python models | all PASS |
 | **Core** | Commit trace, instruction by instruction, every test image, FWD and IC on / off | `rv32sim` + `tools/tracecmp.py` | 0 differences |
-| **Caches** | Every I-cache and D-cache hit and miss, 100,000 random accesses per configuration | `tools/cache_model.py` | 0 differences |
+| **Caches** | Every hit and miss: D-cache 100,000 random accesses per latency, I-cache 29,464 fetches | `tools/cache_model.py` | 0 differences |
 | **Timing** | 30 cycles of the MatMul inner loop, every pipeline signal | pipeline model built from the documented rules | 30 of 30 rows equal |
 | **SoC** | Every program and configuration: checksum, UART stream, hardware counters | `rv32sim`, `tools/golden.py` | all PASS |
 | **Fault injection** | Planted pipeline bugs must make the test programs fail | — | every bug caught |
@@ -386,18 +386,19 @@ runs are measurements.
 │   ├── mem/             shared D-cache, PLRU and FIFO replacement, latency model, instruction and data BRAMs
 │   ├── soc/             clock and reset, switch sampling, arbiter, LOCK / BARRIER, counters, MMIO
 │   ├── io/              UART, result streamer, 7-segment driver, JTAG VIO hook
-│   ├── board/           Nexys A7 constraints and bring-up tops
+│   ├── board/           Nexys A7 constraints and the board-shell driver
 │   ├── lab5a/           the lab 5A pipeline the core was developed from
 │   ├── soc_top.v        the SoC
 │   └── top_fpga.v       the Nexys A7 top level
 ├── fw/                  firmware in C: Game of Life, Mandelbrot, MatMul, display; tests/; built images in build/
 ├── sim/                 rv32sim.c (instruction-level board model), Vivado file lists, tests.txt
-├── tb/                  testbenches and their Python drivers, test vectors, reference streams
+├── tb/                  testbenches and their Python drivers, test vectors
 ├── tools/               Python golden models: checksums, M extension, caches, arbiter, trace compare
 ├── host/                dashboard: spectra_host.py, dashboard.html, protocol.py
 ├── scripts/             build, program, regression and board-automation scripts
 ├── tests/               run_all.py: every software check in one command
 ├── docs/                PROTOCOL.md, interfaces.md, spec/ (one page per module), results/, screenshots/
+├── modules/ · sw/       a separate dual-core design and its software (not part of the SPECTRA build)
 └── build/releases/      pre-built bitstreams with reports and board results: fpga-v1
 ```
 
@@ -413,7 +414,8 @@ runs are measurements.
 | `rtl/core/regfile.v` | 32 × 32-bit register file, read in ID with write-through |
 | `rtl/core/hazard_unit.v` | Forwarding, interlock, global freeze and squash decisions |
 | `rtl/core/execute.v` | EX stage: ALU, branch resolution, MUL / DIV control |
-| `rtl/core/mul_unit.v` · `div_unit.v` | Multiplier on DSP48 slices · iterative divider |
+| `rtl/core/mul.v` · `div.v` | Multiplier on DSP48 slices · iterative divider (34 cycles) |
+| `rtl/core/mul_unit.v` · `div_unit.v` | Port adapters onto `mul.v` and `div.v` |
 | `rtl/core/mem_stage.v` | Load / store side of MEM/WB: byte enables, alignment, sign extension |
 | `rtl/core/icache.v` | Private I-cache: 2 KB, 2-way, 16-byte lines, FIFO |
 | `rtl/core/commit_trace.v` | Simulation-only commit trace, compared with `rv32sim` |
@@ -473,7 +475,7 @@ without re-implementing the design.
 - The D-cache is shared rather than private, so the two cores need no coherence protocol — and cannot show its cost.
 - Switches take effect at the next reset, not mid-run (by design: a run is one configuration).
 - The UART carries about 100 KB/s, so the dashboard shows the program's results, not every intermediate state.
-- Tasks are assigned to each core directly in the C code using their core ID rather than by an automated scheduler or operating system. Because the instruction split is hardcoded, the system cannot dynamically adapt to new programs or different data sizes without manually editing the code and rebuilding the firmware.
+- Each core's share of the work is fixed in the C code by its core ID, not chosen by a scheduler or operating system, so a new program or data size needs the code changed and the firmware rebuilt.
 
 ## Acknowledgements
 
@@ -481,7 +483,3 @@ Built for **CS2202L (Hardware Lab), IIT Guwahati — Group 7**. The core grew ou
 three-stage pipeline (`rtl/lab5a/`). Board: Digilent Nexys A7-100T. ISA: the RISC-V unprivileged
 specification (RV32I and the M extension).
 
-<div align="center">
-<br/>
-<sub>SPECTRA · two cores, one switch per feature, every number measured on the board</sub>
-</div>
