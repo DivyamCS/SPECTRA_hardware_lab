@@ -3,7 +3,7 @@
 One spec page per module. 28 modules. Each page follows `docs/spec/TEMPLATE.md`. Stretch modules
 (victim cache, coherent D-cache) get their pages.
 
-Status of every page: **v1.0**, approved by Divyam on 16 Oct 2026 and frozen with spec v1.0. Ports may still be
+Status of every page: **v1.0** (16 Oct 2026), frozen with spec v1.0. Ports may still be
 refined by the step that builds a module; such a change is recorded in the page's change log
 and, if it touches an interface, in `docs/interfaces.md`.
 

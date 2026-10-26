@@ -42,6 +42,6 @@ CORE_ID for both owners; BARRIER waits for `bar_release`. PASS = every register 
 ## Change log
 | Version | Date | Change |
 | --- | --- | --- |
-| 1.0 | 16 Oct 2026 | First version, approved by Divyam |
-| 1.0.1 | 16 Oct 2026 | BARRIER reads are parked in rr_arbiter (they never hold the shared data port, which would keep the other core from reaching the barrier: a deadlock in the 1.0 design); lock_barrier's bar_req / bar_release are not on this bus. Pending Divyam's review |
-| 1.1 | 17 Oct 2026 | TIMER (0x44, R: clock cycles since reset, never frozen: the time base of the 7-segment tour after the run) and SEG7_TXT (0x48, W: letters per digit, output `seg7_txt`). Divyam's request (17 Oct, demo): labelled 7-segment tour. Approved by Divyam (his request) |
+| 1.0 | 16 Oct 2026 | First version |
+| 1.0.1 | 16 Oct 2026 | BARRIER reads are parked in rr_arbiter (they never hold the shared data port, which would keep the other core from reaching the barrier: a deadlock in the 1.0 design); lock_barrier's bar_req / bar_release are not on this bus |
+| 1.1 | 17 Oct 2026 | TIMER (0x44, R: clock cycles since reset, never frozen: the time base of the 7-segment tour after the run) and SEG7_TXT (0x48, W: letters per digit, output `seg7_txt`), for the labelled 7-segment tour |

@@ -58,7 +58,7 @@ trace = rv32sim's, every UART packet under the rules, shadows = golden.py.
 | Mandelbrot | 1-15 (one two-core: 10d6) | 15 / 15 PASS | build/logs/step106_mandel.log |
 | Game of Life | none | - | - |
 
-Divyam's decision (16 Oct): xsim stopped after Mandelbrot setting 15 (about 30 min per Mandelbrot
+xsim stopped after Mandelbrot setting 15 (about 30 min per Mandelbrot
 setting, up to 2 h per Game of Life setting); every one of the 120 settings runs on the board in
 the board regression instead, from scripts/board_random_106.txt (column xsim marks the 55
 already passed here). The board checks checksum, CONFIG and every UART packet against rv32sim, not

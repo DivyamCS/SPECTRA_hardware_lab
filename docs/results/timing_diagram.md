@@ -3,8 +3,7 @@
 RTL (tb_core_dc with TIMING_DUMP, CONFIG 0x00F3: FWD, D-cache write-back PLRU, I-cache, L = 8,
 one core) against a pipeline model built from the documented rules (tb/timing/run.py). C1 =
 the 5-th time inside the run that the loop's first instruction 0xAD4 has just entered ID
-with a bubble in EX (after the taken bne). The slides' diagram (older build, 10 instructions
-at 0x880) is redrawn from this loop (Divyam's decision, 16 Oct 2026).
+with a bubble in EX (after the taken bne).
 
 Result: all 30 rows equal, every field. PC in hex, - = empty stage (bubble).
 

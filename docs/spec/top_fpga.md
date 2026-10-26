@@ -3,7 +3,7 @@
 | Item | Value |
 | --- | --- |
 | Files | rtl/top_fpga.v (board pins, VIO, clk_rst), rtl/soc_top.v (everything clocked by `clk`, no pins) |
-| Constraints | rtl/board/nexys_a7.xdc (the lab's rtl/lab5a/constraint.xdc stays for the baseline) |
+| Constraints | constraints/nexys_a7.xdc (the lab's constraint.xdc stays for the baseline) |
 | Testbench | tb/tb_top.v drives soc_top |
 | Interfaces | all four |
 | Removal parameter | passes `HAS_*` down to the modules |
@@ -40,5 +40,5 @@ tb_top runs every program on 1 and 2 cores with the UART line decoded in Python;
 ## Change log
 | Version | Date | Change |
 | --- | --- | --- |
-| 1.0 | 16 Oct 2026 | First version, approved by Divyam |
-| 1.1 | 17 Oct 2026 | soc_top output `seg7_txt` (mmio_bus to seg7_bcd and the VIO hook). Divyam's request (17 Oct, demo): labelled 7-segment tour. Approved by Divyam (his request) |
+| 1.0 | 16 Oct 2026 | First version |
+| 1.1 | 17 Oct 2026 | soc_top output `seg7_txt` (mmio_bus to seg7_bcd and the VIO hook), for the labelled 7-segment tour |
