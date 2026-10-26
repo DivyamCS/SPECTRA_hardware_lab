@@ -37,7 +37,7 @@ def configs(prog, count=40, seed=106):
 def board_list(path):
     """The random settings of the three programs as a list for the board
     regression (scripts/board_regress.py). Column xsim = PASS for the settings already run here (MatMul 1-40,
-    Mandelbrot 1-15; Divyam's decision of 16 Oct: the rest on the board)."""
+    Mandelbrot 1-15; the rest on the board)."""
     done = {"matmul": 40, "mandel": 15, "gol": 0}
     with open(path, "w", newline="\n") as f:
         f.write("# program index config xsim   (tb/top/run_random.py, seed 106)\n")

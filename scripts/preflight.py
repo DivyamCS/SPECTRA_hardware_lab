@@ -87,11 +87,11 @@ cc = shutil.which("cc") or shutil.which("gcc") or shutil.which("clang")
 add("C compiler for rv32sim", "OK" if (cc or zig) else "FAIL", cc or ("zig" if zig else "none"),
     "Install a C compiler (gcc / clang), or: python -m pip install ziglang==0.13.0")
 
-# ---- kit ----
+# ---- repository files ----
 need = ["fw/build.py", "sim/rv32sim.c", "host/spectra_host.py", "tests/run_all.py", "docs/PROTOCOL.md"]
 missing = [n for n in need if not os.path.exists(os.path.join(ROOT, n))]
-add("SPECTRA kit", "OK" if not missing else "FAIL", "complete" if not missing else "missing " + ", ".join(missing),
-    "Unzip spectra-kit.zip at the repo root.")
+add("SPECTRA files", "OK" if not missing else "FAIL", "complete" if not missing else "missing " + ", ".join(missing),
+    "Clone the whole repository.")
 lab = [f for f in ("pipe.v", "IF_ID.v", "execute.v", "memory.v", "wb.v", "opcode.vh", "top_fpga.v", "constraint.xdc")
        if not any(os.path.exists(os.path.join(ROOT, d, f)) for d in ("rtl/lab5a", "rtl/core", "rtl", "lab5a"))]
 add("lab 5A files", "OK" if not lab else "WARN", "found" if not lab else "not found: " + ", ".join(lab),

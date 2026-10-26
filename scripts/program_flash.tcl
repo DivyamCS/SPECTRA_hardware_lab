@@ -1,6 +1,6 @@
 # program_flash.tcl - write the demo into the Nexys A7's QSPI flash, so the board starts the demo
 # at power-on with no laptop (docs/fallback.md). This CHANGES what is stored on the board: run it
-# only after Divyam's go-ahead.
+# only on purpose.
 #
 #   vivado -mode batch -nojournal -nolog -notrace -source scripts/program_flash.tcl -tclargs \
 #       build/releases/fpga-v1/flash/top_fpga.mcs --yes-program-the-flash

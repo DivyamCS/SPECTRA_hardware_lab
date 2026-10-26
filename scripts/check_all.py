@@ -2,7 +2,7 @@
 
     python scripts/check_all.py
 
-Runs tests/run_all.py (kit), tools/check_maps.py (spec = header) and, once it exists,
+Runs tests/run_all.py (software checks), tools/check_maps.py (spec = header) and
 scripts/regress.py (every RTL testbench in sim/tests.txt). Exit 0 only if all pass.
 """
 import os
