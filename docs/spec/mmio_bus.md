@@ -23,7 +23,7 @@ perf_counters, the 7-segment, the LEDs, the streamer and the switches and button
 | to/from perf_counters | - | - | `run_start`, `run_stop`, `rd_sel`, `rd_data` |
 | `leds` | out | 16 | LEDS register (LED2 is replaced by `decode_err` in the top) |
 | `seg7_val`, `seg7_dp` | out | 27, 8 | SEG7, SEG7_DP |
-| `st_gen_done`, `st_checksum`, `st_row_done`, `st_mrow_done` | out | pulses + 32-bit data | streamer events, with `owner` for ROW/MROW |
+| `st_gen_done`, `st_checksum`, `st_row_done`, `st_mrow_done`, `st_data`, `st_owner` | out | 1 each, 32, 1 | streamer events: `st_data` = the value written, `st_owner` = the core (ROW / MROW) |
 
 ## Behaviour
 1. Every register and offset exactly as PROTOCOL.md section 3 (32-bit accesses only).

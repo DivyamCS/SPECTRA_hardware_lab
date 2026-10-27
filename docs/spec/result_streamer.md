@@ -23,7 +23,7 @@ Streams each run's results to the laptop over the UART as the packets of PROTOCO
 | `ev_row_done`, `ev_mrow_done`, `ev_owner`, `ev_row` | in | 1,1,1,32 | ROW_DONE / MROW_DONE writes |
 | `ev_checksum`, `checksum` | in | 1, 32 | CHECKSUM write: send STATS |
 | `snap` | in | 32 x 15 | counters from perf_counters for STATS |
-| to uart_top | out/in | - | `wr`, `wr_data`, `full` |
+| to uart_top | out/in | - | `wr`, `wr_data`, `full` -> and `tx_busy` <- (uart_top's `busy`) |
 | `uart_busy` | out | 1 | still sending (VIO probe) |
 
 ## Behaviour
