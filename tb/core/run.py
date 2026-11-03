@@ -24,7 +24,7 @@ ROOT = os.path.dirname(os.path.dirname(HERE))
 sys.path.insert(0, os.path.join(ROOT, "tools"))
 import simpath  # noqa: E402
 
-# testbench and its file list; tb/core/run_m3.py switches these to tb_core_dc
+# testbench and its file list
 FILELIST, TOP, OUTDIR = "sim/core.f", "tb_core", "core"
 
 

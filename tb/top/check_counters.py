@@ -5,7 +5,7 @@
 For each tb_top run (tb/top/run.py), the STATS packet decoded from uart_rtl.hex gives the
 hardware counters of each running core. Reference:
   * one core: D_HIT and D_MISS from tools/cache_model.py replayed on rv32sim's data-access
-    trace of the same image and CONFIG (as check_hits.py does for the D-cache's own pulses),
+    trace of the same image and CONFIG,
     INSTRET from rv32sim;
   * two cores: the D-cache is shared, so which access hits depends on the order the arbiter
     serves the two cores, and that order is timing (rv32sim's differs). D_HIT / D_MISS come from
