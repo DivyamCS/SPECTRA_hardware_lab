@@ -1,0 +1,15 @@
+board_regress: 11 settings, about 4 s of runs
+     (82 bytes before the first run ignored: a run started before this session)
+ok   all_on_1c        0x0093: board 2223 cycles (rv32sim 2202), 2 packets, 0 FRAMEs, LEDs 0x1403
+ok   all_on_2c        0x0097: board 2223 cycles (rv32sim 2202), 2 packets, 0 FRAMEs, LEDs 0x1403
+ok   fwd_off_1c       0x0092: board 2257 cycles (rv32sim 2236), 2 packets, 0 FRAMEs, LEDs 0x1403
+ok   fwd_off_2c       0x0096: board 2257 cycles (rv32sim 2236), 2 packets, 0 FRAMEs, LEDs 0x1403
+ok   ic_off_1c        0x0013: board 4691 cycles (rv32sim 4413), 2 packets, 0 FRAMEs, LEDs 0x1403
+ok   ic_off_2c        0x0017: board 4691 cycles (rv32sim 4413), 2 packets, 0 FRAMEs, LEDs 0x1403
+ok   dc_off_1c        0x0091: board 2354 cycles (rv32sim 2358), 2 packets, 0 FRAMEs, LEDs 0x1403
+ok   dc_off_2c        0x0095: board 2354 cycles (rv32sim 2358), 2 packets, 0 FRAMEs, LEDs 0x1403
+ok   caches_off_2c    0x0015: board 4703 cycles (rv32sim 4569), 2 packets, 0 FRAMEs, LEDs 0x1403
+ok   L5_2c            0x0087: board 1812 cycles (rv32sim 1797), 2 packets, 0 FRAMEs, LEDs 0x1403
+ok   L10_2c           0x009f: board 2497 cycles (rv32sim 2472), 2 packets, 0 FRAMEs, LEDs 0x1403
+UART: 984 bytes, 22 packets, 0 errors
+PASS board_regress: 11 settings on the board, every run = rv32sim's packets, checksum OK (build/releases/fpga-v2/board)

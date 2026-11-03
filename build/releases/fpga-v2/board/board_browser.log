@@ -1,0 +1,110 @@
+ok   00f3 step  0: 'Cy   535' LEDs 1403
+ok   00f3 step  1: 'Cy   535' LEDs 1403
+ok   00f3 step  2: 'dH 96888' LEDs 4003
+ok   00f3 step  3: 'dn  2444' LEDs 8003
+ok   00f3 step  4: 'Ar     0' LEDs c003
+ok   00f3 step  5: 'Ar   0.00' LEDs c803
+ok   00f3 step  6: 'IH  99.99' LEDs 8803
+ok   00f3 step  7: 'dH  97.53' LEDs 4803
+ok   00f3 step  8: 'CPI  1.98' LEDs 0803
+ok   00f3 step  9: 'CPI  1.98' LEDs 0803
+ok   00f3 step 10: 'dH  97.53' LEDs 4803
+ok   00f3 step 11: 'IH  99.99' LEDs 8803
+ok   00f3 step 12: 'Ar   0.00' LEDs c803
+ok   00f3 step 13: 'dn  2444' LEDs 8003
+ok   00f3 step 14: 'dH 96888' LEDs 4003
+ok   00f3 step 15: 'Cy   535' LEDs 1003
+ok   00f3 step 16: 'Cy   535' LEDs 1403
+ok   00f3 step 17: 'IH  99.99' LEDs 8c03
+ok   00f7 step  0: 'Cy   297' LEDs 1403
+ok   00f7 step  1: 'Cy   297' LEDs 1403
+ok   00f7 step  2: 'dH0.49300' LEDs 4003
+ok   00f7 step  3: 'dn0.  368' LEDs 8003
+ok   00f7 step  4: 'Ar0.42204' LEDs c003
+ok   00f7 step  5: 'Ar0. 14.20' LEDs c803
+ok   00f7 step  6: 'IH0. 99.99' LEDs 8803
+ok   00f7 step  7: 'dH0. 99.25' LEDs 4803
+ok   00f7 step  8: 'CPI0. 2.20' LEDs 0803
+ok   00f7 step  9: 'CPI1. 2.20' LEDs 2803
+ok   00f7 step 10: 'dH1. 96.86' LEDs 6803
+ok   00f7 step 11: 'IH1. 99.99' LEDs a803
+ok   00f7 step 12: 'Ar1.  7.05' LEDs e803
+ok   00f7 step 13: 'dn1. 1558' LEDs a003
+ok   00f7 step 14: 'dH0.49300' LEDs 4003
+ok   00f7 step 15: 'Cy   297' LEDs 1003
+ok   00f7 step 16: 'Cy   297' LEDs 1403
+ok   00f7 step 17: 'IH0. 99.99' LEDs 8c03
+ok   0093 step  0: 'Cy 70337' LEDs 1403
+ok   0093 step  1: 'Cy 70337' LEDs 1403
+ok   0093 step  2: 'dH 13852' LEDs 5003
+ok   0093 step  3: 'dn201604' LEDs 8003
+ok   0093 step  4: 'Ar     0' LEDs c003
+ok   0093 step  5: 'Ar   0.00' LEDs c803
+ok   0093 step  6: 'IH  99.99' LEDs 8803
+ok   0093 step  7: 'dH  98.56' LEDs 4803
+ok   0093 step  8: 'CPI  1.50' LEDs 0803
+ok   0093 step  9: 'CPI  1.50' LEDs 0803
+ok   0093 step 10: 'dH  98.56' LEDs 4803
+ok   0093 step 11: 'IH  99.99' LEDs 8803
+ok   0093 step 12: 'Ar   0.00' LEDs c803
+ok   0093 step 13: 'dn201604' LEDs 8003
+ok   0093 step 14: 'dH 13852' LEDs 5003
+ok   0093 step 15: 'Cy 70337' LEDs 1003
+ok   0093 step 16: 'Cy 70337' LEDs 1403
+ok   0093 step 17: 'IH  99.99' LEDs 8c03
+ok   0097 step  0: 'Cy 38660' LEDs 1403
+ok   0097 step  1: 'Cy 38660' LEDs 1403
+ok   0097 step  2: 'dH0. 6930' LEDs 5003
+ok   0097 step  3: 'dn0.  103' LEDs 9003
+ok   0097 step  4: 'Ar0. 3472' LEDs d003
+ok   0097 step  5: 'Ar0.  8.98' LEDs c803
+ok   0097 step  6: 'IH0. 99.99' LEDs 8803
+ok   0097 step  7: 'dH0. 98.53' LEDs 4803
+ok   0097 step  8: 'CPI0. 1.64' LEDs 0803
+ok   0097 step  9: 'CPI1. 1.65' LEDs 2803
+ok   0097 step 10: 'dH1. 98.56' LEDs 6803
+ok   0097 step 11: 'IH1. 99.99' LEDs a803
+ok   0097 step 12: 'Ar1.  8.83' LEDs e803
+ok   0097 step 13: 'dn1.  101' LEDs b003
+ok   0097 step 14: 'dH0. 6930' LEDs 5003
+ok   0097 step 15: 'Cy 38660' LEDs 1003
+ok   0097 step 16: 'Cy 38660' LEDs 1403
+ok   0097 step 17: 'IH0. 99.99' LEDs 8c03
+ok   0091 step  0: 'Cy193212' LEDs 1403
+ok   0091 step  1: 'Cy193212' LEDs 1403
+ok   0091 step  2: 'dH     0' LEDs 4003
+ok   0091 step  3: 'dn     0' LEDs 8003
+ok   0091 step  4: 'Ar     0' LEDs c003
+ok   0091 step  5: 'Ar   0.00' LEDs c803
+ok   0091 step  6: 'IH  99.99' LEDs 8803
+ok   0091 step  7: 'dH   0.00' LEDs 4803
+ok   0091 step  8: 'CPI  4.12' LEDs 0803
+ok   0091 step  9: 'CPI  4.12' LEDs 0803
+ok   0091 step 10: 'dH   0.00' LEDs 4803
+ok   0091 step 11: 'IH  99.99' LEDs 8803
+ok   0091 step 12: 'Ar   0.00' LEDs c803
+ok   0091 step 13: 'dn     0' LEDs 8003
+ok   0091 step 14: 'dH     0' LEDs 4003
+ok   0091 step 15: 'Cy193212' LEDs 1003
+ok   0091 step 16: 'Cy193212' LEDs 1403
+ok   0091 step 17: 'IH  99.99' LEDs 8c03
+ok   00b7 step  0: 'Cy  6209' LEDs 1403
+ok   00b7 step  1: 'Cy  6209' LEDs 1403
+ok   00b7 step  2: 'dH0.12963' LEDs 4003
+ok   00b7 step  3: 'dn0.  866' LEDs 8003
+ok   00b7 step  4: 'Ar0.  366' LEDs c003
+ok   00b7 step  5: 'Ar0.  0.00' LEDs c803
+ok   00b7 step  6: 'IH0. 99.99' LEDs 8803
+ok   00b7 step  7: 'dH0. 93.73' LEDs 4803
+ok   00b7 step  8: 'CPI0. 1.65' LEDs 0803
+ok   00b7 step  9: 'CPI1. 1.60' LEDs 2803
+ok   00b7 step 10: 'dH1. 93.73' LEDs 6803
+ok   00b7 step 11: 'IH1. 99.99' LEDs a803
+ok   00b7 step 12: 'Ar1.  0.00' LEDs e803
+ok   00b7 step 13: 'dn1.  866' LEDs a003
+ok   00b7 step 14: 'dH0.12963' LEDs 4003
+ok   00b7 step 15: 'Cy  6209' LEDs 1003
+ok   00b7 step 16: 'Cy  6209' LEDs 1403
+ok   00b7 step 17: 'IH0. 99.99' LEDs 8c03
+PASS board_browser (00f3 00f7 0093 0097 0091 00b7): tour, every browser setting, BTNU, labels = the run's own STATS
+exit 0

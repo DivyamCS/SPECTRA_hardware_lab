@@ -1,8 +1,7 @@
 # fpga_budget.txt - resource limits of the full FPGA build, checked by scripts/fpga_build.py.
 # key  kind  limit
-# The measured f11ea85 build (docs/results/fpga_build.md); a build that needs more must change
-# this file on purpose. 17 Oct: +94 LUT for the labelled 7-segment tour (TIMER, SEG7_TXT,
-# letter decoder, VIO probe 4), measured at 0cd48e2.
-LUT   max    10329
+# Limits = the release build (build/releases/fpga-v2/summary.txt); a build that needs more must
+# change this file on purpose.
+LUT   max    9982
 BRAM  max    53
 DSP   exact  8

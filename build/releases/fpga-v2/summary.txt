@@ -1,0 +1,10 @@
+top=top_fpga
+part=xc7a100tcsg324-1
+WNS=0.262
+WHS=0.041
+LUT=9982
+FF=8230
+BRAM=53
+DSP=8
+timing=met
+minutes=5.233333333333333

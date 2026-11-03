@@ -1,9 +1,9 @@
 # program_flash.tcl - write the demo into the Nexys A7's QSPI flash, so the board starts the demo
-# at power-on with no laptop (docs/fallback.md). This CHANGES what is stored on the board: run it
+# at power-on with no laptop. This CHANGES what is stored on the board: run it
 # only on purpose.
 #
 #   vivado -mode batch -nojournal -nolog -notrace -source scripts/program_flash.tcl -tclargs \
-#       build/releases/fpga-v1/flash/top_fpga.mcs --yes-program-the-flash
+#       build/releases/fpga-v2/flash/top_fpga.mcs --yes-program-the-flash
 #
 # The image comes from `python scripts/updatemem.py swap DCP fw/build/demo OUT --flash` (SPI x4,
 # 33 MHz, compressed; checked on the board over JTAG). Steps: connect over JTAG, attach the flash

@@ -1,0 +1,19 @@
+board_regress: 16 settings, about 55 s of runs
+ok   gol_all_on       0x0097: board 38660388 cycles (rv32sim 38660811), 136 packets, 134 FRAMEs, LEDs 0x1403
+ok   gol_fwd_off      0x0096: board 48301363 cycles (rv32sim 47792592), 136 packets, 134 FRAMEs, LEDs 0x1403
+ok   gol_ic_off       0x0017: board 251696594 cycles (rv32sim 247064653), 403 packets, 401 FRAMEs, LEDs 0x4c03
+ok   gol_dc_off       0x0095: board 154753199 cycles (rv32sim 154753350), 403 packets, 401 FRAMEs, LEDs 0x8c03
+ok   gol_dual_off     0x0093: board 70337750 cycles (rv32sim 70337794), 203 packets, 201 FRAMEs, LEDs 0x1403
+ok   gol_L5           0x0087: board 37740874 cycles (rv32sim 37741270), 136 packets, 134 FRAMEs, LEDs 0x1403
+ok   gol_L10          0x009f: board 39279220 cycles (rv32sim 39279655), 136 packets, 134 FRAMEs, LEDs 0x1403
+ok   gol_all_off      0x0010: board 604166137 cycles (rv32sim 633780055), 403 packets, 401 FRAMEs, LEDs 0x0c03
+ok   matmul_all_on    0x00f7: board 297020 cycles (rv32sim 297074), 34 packets, 0 FRAMEs, LEDs 0x1403
+ok   matmul_fwd_off   0x00f6: board 315604 cycles (rv32sim 329762), 34 packets, 0 FRAMEs, LEDs 0x1403
+ok   matmul_ic_off    0x0077: board 1574591 cycles (rv32sim 1489302), 34 packets, 0 FRAMEs, LEDs 0x1403
+ok   matmul_dc_off    0x00f5: board 1092935 cycles (rv32sim 1093045), 34 packets, 0 FRAMEs, LEDs 0x1403
+ok   matmul_dual_off  0x00f3: board 535596 cycles (rv32sim 535623), 34 packets, 0 FRAMEs, LEDs 0x1403
+ok   matmul_L5        0x00e7: board 289377 cycles (rv32sim 289419), 34 packets, 0 FRAMEs, LEDs 0x1403
+ok   matmul_L10       0x00ff: board 302116 cycles (rv32sim 302178), 34 packets, 0 FRAMEs, LEDs 0x1403
+ok   matmul_all_off   0x0070: board 3286873 cycles (rv32sim 3885984), 34 packets, 0 FRAMEs, LEDs 0x1403
+UART: 1026940 bytes, 2228 packets, 0 errors
+PASS board_regress: 16 settings on the board, every run = rv32sim's packets, checksum OK (build/releases/fpga-v2/board)

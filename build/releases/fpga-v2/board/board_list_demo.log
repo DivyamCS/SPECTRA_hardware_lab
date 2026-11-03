@@ -1,0 +1,53 @@
+board_regress: 48 settings, about 112 s of runs
+     (13084 bytes before the first run ignored: a run started before this session)
+ok   guide01_game_of_life_1_core_d_cache_off 0x0091: board 193212013 cycles (rv32sim 193212085), 403 packets, 401 FRAMEs, LEDs 0x8c03
+ok   guide02_game_of_life_1_core_d_cache_on 0x0093: board 70337750 cycles (rv32sim 70337794), 203 packets, 201 FRAMEs, LEDs 0x1403
+ok   guide03_game_of_life_2_cores 0x0097: board 38660388 cycles (rv32sim 38660811), 136 packets, 134 FRAMEs, LEDs 0x1403
+ok   guide04_matmul_32x32_1_core 0x00f3: board 535596 cycles (rv32sim 535623), 34 packets, 0 FRAMEs, LEDs 0x1403
+ok   guide05_matmul_2_cores 0x00f7: board 297020 cycles (rv32sim 297074), 34 packets, 0 FRAMEs, LEDs 0x1403
+ok   guide06_mandelbrot_halves_1_core 0x00b3: board 12224498 cycles (rv32sim 12224500), 146 packets, 0 FRAMEs, LEDs 0x1403
+ok   guide07_mandelbrot_halves_2_cores 0x00b7: board 6209751 cycles (rv32sim 6209774), 146 packets, 0 FRAMEs, LEDs 0x1403
+ok   guide08_mandelbrot_interleaved_1_core 0x00d3: board 12224409 cycles (rv32sim 12224422), 146 packets, 0 FRAMEs, LEDs 0x1403
+ok   guide09_mandelbrot_interleaved_2_cores 0x00d7: board 6131187 cycles (rv32sim 6131222), 146 packets, 0 FRAMEs, LEDs 0x1403
+ok   guide10_forwarding_off 0x0092: board 89281164 cycles (rv32sim 89281207), 203 packets, 201 FRAMEs, LEDs 0x1403
+ok   guide11_i_cache_off 0x0013: board 502503362 cycles (rv32sim 491962351), 403 packets, 401 FRAMEs, LEDs 0x0c03
+ok   guide12_both_caches_off 0x0011: board 514558909 cycles (rv32sim 614836642), 403 packets, 401 FRAMEs, LEDs 0x0c03
+ok   guide13_memory_latency_l_5 0x0083: board 69434852 cycles (rv32sim 69434887), 203 packets, 201 FRAMEs, LEDs 0x1403
+ok   guide14_memory_latency_l_10 0x009b: board 70939682 cycles (rv32sim 70939732), 203 packets, 201 FRAMEs, LEDs 0x1403
+ok   guide15_mandelbrot_halves_2_cores_dc_off 0x00b5: board 6314376 cycles (rv32sim 6314412), 146 packets, 0 FRAMEs, LEDs 0x1403
+ok   guide16_mandelbrot_interleaved_2_cores_dc_off 0x00d5: board 6237469 cycles (rv32sim 6237475), 146 packets, 0 FRAMEs, LEDs 0x1403
+ok   lat_gol_1c_L5    0x0083: board 69434852 cycles (rv32sim 69434887), 203 packets, 201 FRAMEs, LEDs 0x1403
+ok   lat_gol_1c_L6    0x008b: board 69735818 cycles (rv32sim 69735856), 203 packets, 201 FRAMEs, LEDs 0x1403
+ok   lat_gol_1c_L8    0x0093: board 70337750 cycles (rv32sim 70337794), 203 packets, 201 FRAMEs, LEDs 0x1403
+ok   lat_gol_1c_L10   0x009b: board 70939682 cycles (rv32sim 70939732), 203 packets, 201 FRAMEs, LEDs 0x1403
+ok   lat_gol_2c_L5    0x0087: board 37740874 cycles (rv32sim 37741270), 136 packets, 134 FRAMEs, LEDs 0x1403
+ok   lat_gol_2c_L6    0x008f: board 38046497 cycles (rv32sim 38046902), 136 packets, 134 FRAMEs, LEDs 0x1403
+ok   lat_gol_2c_L8    0x0097: board 38660388 cycles (rv32sim 38660811), 136 packets, 134 FRAMEs, LEDs 0x1403
+ok   lat_gol_2c_L10   0x009f: board 39279220 cycles (rv32sim 39279655), 136 packets, 134 FRAMEs, LEDs 0x1403
+ok   lat_mandel_halves_1c_L5 0x00a3: board 12214817 cycles (rv32sim 12214819), 146 packets, 0 FRAMEs, LEDs 0x1403
+ok   lat_mandel_halves_1c_L6 0x00ab: board 12218044 cycles (rv32sim 12218046), 146 packets, 0 FRAMEs, LEDs 0x1403
+ok   lat_mandel_halves_1c_L8 0x00b3: board 12224498 cycles (rv32sim 12224500), 146 packets, 0 FRAMEs, LEDs 0x1403
+ok   lat_mandel_halves_1c_L10 0x00bb: board 12230952 cycles (rv32sim 12230954), 146 packets, 0 FRAMEs, LEDs 0x1403
+ok   lat_mandel_halves_2c_L5 0x00a7: board 6204399 cycles (rv32sim 6204433), 146 packets, 0 FRAMEs, LEDs 0x1403
+ok   lat_mandel_halves_2c_L6 0x00af: board 6206141 cycles (rv32sim 6206181), 146 packets, 0 FRAMEs, LEDs 0x1403
+ok   lat_mandel_halves_2c_L8 0x00b7: board 6209751 cycles (rv32sim 6209774), 146 packets, 0 FRAMEs, LEDs 0x1403
+ok   lat_mandel_halves_2c_L10 0x00bf: board 6213230 cycles (rv32sim 6213260), 146 packets, 0 FRAMEs, LEDs 0x1403
+ok   lat_mandel_interleaved_1c_L5 0x00c3: board 12214740 cycles (rv32sim 12214750), 146 packets, 0 FRAMEs, LEDs 0x1403
+ok   lat_mandel_interleaved_1c_L6 0x00cb: board 12217963 cycles (rv32sim 12217974), 146 packets, 0 FRAMEs, LEDs 0x1403
+ok   lat_mandel_interleaved_1c_L8 0x00d3: board 12224409 cycles (rv32sim 12224422), 146 packets, 0 FRAMEs, LEDs 0x1403
+ok   lat_mandel_interleaved_1c_L10 0x00db: board 12230855 cycles (rv32sim 12230870), 146 packets, 0 FRAMEs, LEDs 0x1403
+ok   lat_mandel_interleaved_2c_L5 0x00c7: board 6125936 cycles (rv32sim 6125962), 146 packets, 0 FRAMEs, LEDs 0x1403
+ok   lat_mandel_interleaved_2c_L6 0x00cf: board 6127646 cycles (rv32sim 6127675), 146 packets, 0 FRAMEs, LEDs 0x1403
+ok   lat_mandel_interleaved_2c_L8 0x00d7: board 6131187 cycles (rv32sim 6131222), 146 packets, 0 FRAMEs, LEDs 0x1403
+ok   lat_mandel_interleaved_2c_L10 0x00df: board 6134802 cycles (rv32sim 6134843), 146 packets, 0 FRAMEs, LEDs 0x1403
+ok   lat_matmul_1c_L5 0x00e3: board 526713 cycles (rv32sim 526734), 34 packets, 0 FRAMEs, LEDs 0x1403
+ok   lat_matmul_1c_L6 0x00eb: board 529674 cycles (rv32sim 529697), 34 packets, 0 FRAMEs, LEDs 0x1403
+ok   lat_matmul_1c_L8 0x00f3: board 535596 cycles (rv32sim 535623), 34 packets, 0 FRAMEs, LEDs 0x1403
+ok   lat_matmul_1c_L10 0x00fb: board 541518 cycles (rv32sim 541549), 34 packets, 0 FRAMEs, LEDs 0x1403
+ok   lat_matmul_2c_L5 0x00e7: board 289377 cycles (rv32sim 289419), 34 packets, 0 FRAMEs, LEDs 0x1403
+ok   lat_matmul_2c_L6 0x00ef: board 291924 cycles (rv32sim 291970), 34 packets, 0 FRAMEs, LEDs 0x1403
+ok   lat_matmul_2c_L8 0x00f7: board 297020 cycles (rv32sim 297074), 34 packets, 0 FRAMEs, LEDs 0x1403
+ok   lat_matmul_2c_L10 0x00ff: board 302116 cycles (rv32sim 302178), 34 packets, 0 FRAMEs, LEDs 0x1403
+UART: 2497615 bytes, 7065 packets, 0 errors
+PASS board_regress: 48 settings on the board, every run = rv32sim's packets, checksum OK (build/releases/fpga-v2/board)
+exit 0

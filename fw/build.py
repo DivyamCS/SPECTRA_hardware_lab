@@ -2,6 +2,7 @@
 
     python fw/build.py                 build all images into fw/build/<name>/
     python fw/build.py --cc zig        force a toolchain: gcc | clang | zig
+    python fw/build.py --out DIR       write the images into DIR/<name>/ instead
 
 Toolchain, first found wins (or --cc / env SPECTRA_CC):
   gcc   riscv-none-elf-gcc or riscv64-unknown-elf-gcc   (xPack on the lab PC)
@@ -128,6 +129,9 @@ def make_hex(elf, outdir):
 
 
 def main():
+    global OUT
+    if "--out" in sys.argv:
+        OUT = os.path.abspath(sys.argv[sys.argv.index("--out") + 1])
     choice = os.environ.get("SPECTRA_CC")
     if "--cc" in sys.argv:
         choice = sys.argv[sys.argv.index("--cc") + 1]

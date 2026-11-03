@@ -85,7 +85,9 @@ def main():
             name, generic or "-", what, "{:,}".format(int(float(r["LUT"]))), "{:,}".format(int(float(r["FF"]))),
             r["BRAM"], r["DSP"], r["WNS"], " | ".join(cost)))
     md += ["", "Device: 63,400 LUT, 126,800 FF, 135 BRAM tiles, 240 DSP. Every variant: timing %s." %
-           ("met" if all(v["timing"] == "met" for v in res.values()) else "NOT met in some (see WNS)")]
+           ("met" if all(v["timing"] == "met" for v in res.values()) else "NOT met in some (see WNS)"),
+           "A cost below 0 means the feature is smaller than the difference Vivado's optimisation and "
+           "placement make between two builds."]
     open(os.path.join(ROOT, "docs", "results", "area.md"), "w", newline="\n").write("\n".join(md) + "\n")
     print("PASS area: docs/results/area.md (%d variants)" % len(res))
 

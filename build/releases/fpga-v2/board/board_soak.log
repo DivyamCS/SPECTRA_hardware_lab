@@ -1,0 +1,44 @@
+board_soak: 40 iterations, 40 cut-off runs, 4 reset bursts
+ok    1 0x215e: cut after  549 ms, then the whole run: checksum OK, packets = rv32sim
+ok    2 0x008f: cut after  435 ms, then the whole run: checksum OK, packets = rv32sim
+ok    3 0x0092: cut after  273 ms, then the whole run: checksum OK, packets = rv32sim
+ok    4 0x024f: cut after  186 ms, then the whole run: checksum OK, packets = rv32sim
+ok    5 0x11f8: cut after   12 ms, then the whole run: checksum OK, packets = rv32sim
+ok    6 0x0e47: cut after  295 ms, then the whole run: checksum OK, packets = rv32sim
+ok    7 0x07d2: cut after   74 ms, then the whole run: checksum OK, packets = rv32sim
+ok    8 0x0c83: cut after 1002 ms, then the whole run: checksum OK, packets = rv32sim
+ok    9 0x1363: cut after   21 ms, then the whole run: checksum OK, packets = rv32sim
+ok   10 0x0ad6: cut after   59 ms (after 10 resets), then the whole run: checksum OK, packets = rv32sim
+ok   11 0x23eb: cut after    8 ms, then the whole run: checksum OK, packets = rv32sim
+ok   12 0x0147: cut after  148 ms, then the whole run: checksum OK, packets = rv32sim
+ok   13 0x0937: cut after  509 ms, then the whole run: checksum OK, packets = rv32sim
+ok   14 0x1187: cut after  141 ms, then the whole run: checksum OK, packets = rv32sim
+ok   15 0x0afb: cut after    7 ms, then the whole run: checksum OK, packets = rv32sim
+ok   16 0x0026: cut after  120 ms, then the whole run: checksum OK, packets = rv32sim
+ok   17 0x12f3: cut after    3 ms, then the whole run: checksum OK, packets = rv32sim
+ok   18 0x098e: cut after  494 ms, then the whole run: checksum OK, packets = rv32sim
+ok   19 0x0063: cut after    8 ms, then the whole run: checksum OK, packets = rv32sim
+ok   20 0x0053: cut after 1099 ms (after 10 resets), then the whole run: checksum OK, packets = rv32sim
+ok   21 0x029e: cut after  213 ms, then the whole run: checksum OK, packets = rv32sim
+ok   22 0x07e6: cut after    4 ms, then the whole run: checksum OK, packets = rv32sim
+ok   23 0x0b83: cut after  639 ms, then the whole run: checksum OK, packets = rv32sim
+ok   24 0x027a: cut after   34 ms, then the whole run: checksum OK, packets = rv32sim
+ok   25 0x1346: cut after  330 ms, then the whole run: checksum OK, packets = rv32sim
+ok   26 0x0696: cut after  365 ms, then the whole run: checksum OK, packets = rv32sim
+ok   27 0x02b3: cut after  195 ms, then the whole run: checksum OK, packets = rv32sim
+ok   28 0x0b3b: cut after  465 ms, then the whole run: checksum OK, packets = rv32sim
+ok   29 0x21b2: cut after    8 ms, then the whole run: checksum OK, packets = rv32sim
+ok   30 0x20cf: cut after   45 ms (after 10 resets), then the whole run: checksum OK, packets = rv32sim
+ok   31 0x07fb: cut after    2 ms, then the whole run: checksum OK, packets = rv32sim
+ok   32 0x012f: cut after    2 ms, then the whole run: checksum OK, packets = rv32sim
+ok   33 0x23ff: cut after    1 ms, then the whole run: checksum OK, packets = rv32sim
+ok   34 0x017b: cut after   41 ms, then the whole run: checksum OK, packets = rv32sim
+ok   35 0x09c2: cut after   22 ms, then the whole run: checksum OK, packets = rv32sim
+ok   36 0x0027: cut after  239 ms, then the whole run: checksum OK, packets = rv32sim
+ok   37 0x06b3: cut after  141 ms, then the whole run: checksum OK, packets = rv32sim
+ok   38 0x2322: cut after  540 ms, then the whole run: checksum OK, packets = rv32sim
+ok   39 0x0f2f: cut after  258 ms, then the whole run: checksum OK, packets = rv32sim
+ok   40 0x132b: cut after  859 ms (after 10 resets), then the whole run: checksum OK, packets = rv32sim
+board_soak: 80 cut-off runs seen in the recording (1925420 bytes)
+PASS board_soak: 40 runs cut off by reset at random times (+ 4 bursts of 10 resets), every rerun exact
+exit 0

@@ -3,7 +3,8 @@
     python tests/run_all.py          about 1-3 minutes
 
 1. reference self-tests (M-extension, cache, arbiter, protocol) and the spec/header map check
-2. firmware build with -Werror; .data must be empty; only RV32IM opcodes in the listings
+2. firmware build with -Werror into a temporary folder; .data must be empty; only RV32IM opcodes in the
+   listings of the committed images (fw/build, the ones in the bitstream) and of the new build
 3. rv32sim build
 4. every demo program x 1 and 2 cores x feature settings: checksum must equal golden
 5. every test program x 10 settings: must pass
@@ -57,7 +58,8 @@ r = run([PY, os.path.join("tools", "check_maps.py")])
 check("PROTOCOL.md = spectra.h", r.returncode == 0, r.stdout.strip().splitlines()[-1] if r.stdout else r.stderr)
 
 print("2. firmware")
-r = run([PY, os.path.join("fw", "build.py")])
+FW = os.path.join(TMP, "fw_build")
+r = run([PY, os.path.join("fw", "build.py"), "--out", FW])
 check("build all images (-Wall -Wextra -Werror, .data empty)", r.returncode == 0, r.stdout.splitlines()[0] if r.stdout else r.stderr[-300:])
 if r.returncode:
     sys.exit("firmware build failed:\n" + r.stdout + r.stderr)
@@ -65,8 +67,8 @@ ALLOWED = set("lui auipc jal jalr beq bne blt bge bltu bgeu lb lh lw lbu lhu sb 
               "slli srli srai add sub sll slt sltu xor srl sra or and mul mulh mulhsu mulhu div divu rem remu "
               "li mv nop j jr ret not neg seqz snez sltz sgtz beqz bnez blez bgez bltz bgtz bgt ble bgtu bleu call tail la".split())
 bad = set()
-for img in os.listdir(os.path.join(ROOT, "fw", "build")):
-    lst = os.path.join(ROOT, "fw", "build", img, img + ".lst")
+for base, img in [(b, i) for b in (os.path.join(ROOT, "fw", "build"), FW) for i in os.listdir(b)]:
+    lst = os.path.join(base, img, img + ".lst")
     if os.path.exists(lst):
         for line in open(lst):
             p = line.split("\t")
@@ -243,7 +245,7 @@ r = run([PY, os.path.join("host", "spectra_host.py"), "--sim", "00f7", "--runs",
 check("simulated run through the host, checksum OK", r.returncode == 0, r.stdout.strip())
 
 # fallback: the release's board recording, replayed and served with no board
-rec = os.path.join(ROOT, "build", "releases", "fpga-v1", "board", "demo_uart.bin")
+rec = os.path.join(ROOT, "build", "releases", "fpga-v2", "board", "demo_uart.bin")
 if os.path.exists(rec):
     import json as _json
     import socket
@@ -251,7 +253,7 @@ if os.path.exists(rec):
     import urllib.request
     fb = os.path.join(TMP, "runs_fallback")
     r = run([PY, os.path.join("host", "spectra_host.py"), "--replay", rec, "--source", "board", "--runs", fb])
-    check("fallback: board recording replays (51 runs, 0 bytes dropped)", r.returncode == 0 and " 0 dropped, 51 run(s)" in r.stdout,
+    check("fallback: board recording replays (48 runs, 0 bytes dropped)", r.returncode == 0 and " 0 dropped, 48 run(s)" in r.stdout,
           r.stdout.strip().splitlines()[-1] if r.stdout.strip() else r.stderr[-200:])
     s = socket.socket()
     s.bind(("127.0.0.1", 0))
@@ -272,8 +274,8 @@ if os.path.exists(rec):
         host.terminate()
         host.wait()
     board = [x for x in runs if x["source"] == "board"]
-    check("fallback: dashboard serves them offline (51 board runs, all golden)",
-          len(board) == 51 and all(x["ok"] for x in board) and b"SPECTRA" in page, "%d board runs" % len(board))
+    check("fallback: dashboard serves them offline (48 board runs, all golden)",
+          len(board) == 48 and all(x["ok"] for x in board) and b"SPECTRA" in page, "%d board runs" % len(board))
 
 print()
 print("ALL PASS" if not fails else "%d FAILED: %s" % (len(fails), ", ".join(fails)))

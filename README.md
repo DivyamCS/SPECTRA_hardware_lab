@@ -18,6 +18,12 @@ was switched.
 [![RISC-V](https://img.shields.io/badge/ISA-RV32IM-283272?logo=riscv&logoColor=white)](https://riscv.org/)
 [![FPGA](https://img.shields.io/badge/FPGA-Nexys_A7--100T-ED1C24?logo=amd&logoColor=white)](https://digilent.com/reference/programmable-logic/nexys-a7/start)
 [![Vivado](https://img.shields.io/badge/Vivado-2025.2-ED1C24?logo=amd&logoColor=white)](https://www.amd.com/en/products/software/adaptive-socs-and-fpgas/vivado.html)
+[![Timing](https://img.shields.io/badge/Timing-met_@_50_MHz-2ea44f)](#resource-utilization)
+[![Tests](https://img.shields.io/badge/Tests-35_RTL_·_71_software_·_239_board_runs-2ea44f)](#verification)
+[![C](https://img.shields.io/badge/Firmware-C_·_RISC--V_GCC-A8B9CC?logo=c&logoColor=white)](fw/)
+[![Python](https://img.shields.io/badge/Python-3.9+-3776AB?logo=python&logoColor=white)](host/)
+
+[Overview](#overview) · [Architecture](#architecture) · [Results](#measured-results) · [Board reference](#board-reference) · [RTL & testbenches](#rtl-modules-and-their-testbenches) · [Software](#software) · [Verification](#verification) · [Quick start](#quick-start)
 
 <br/>
 
@@ -100,7 +106,8 @@ Timing rules for each part: [`docs/architecture.md`](docs/architecture.md).
 
 ## Measured results
 
-All numbers are **measured on the board at 50 MHz** (default: forwarding and both caches on, L = 8).
+All numbers are **measured on the board at 50 MHz** with the release bitstream `fpga-v2` (default:
+forwarding and both caches on, L = 8). Source: [`docs/results/numbers.md`](docs/results/numbers.md).
 
 ### Two cores
 
@@ -113,6 +120,8 @@ All numbers are **measured on the board at 50 MHz** (default: forwarding and bot
 
 Mandelbrot is compute-bound and scales almost perfectly. Game of Life and MatMul share the data cache,
 so the two cores sometimes wait for each other at the arbiter (9 % and 14 % of the cycles).
+The dashboard screenshots below are from earlier board runs, so a few two-core counts in them
+differ slightly (under 0.1 %) from this table.
 
 ### What each feature is worth
 
@@ -123,7 +132,7 @@ How much slower the two-core run becomes when one feature is switched off:
 | I-caches | **6.51×** | **5.30×** | every instruction fetch goes to slow memory |
 | D-cache | **4.00×** | **3.68×** | every load and store goes to slow memory |
 | Second core | 1.82× | 1.80× | |
-| Forwarding | 1.25× | 1.06× | one stall cycle per dependent instruction |
+| Forwarding | 1.25× | 1.06× | one stall cycle per dependent instruction ([MatMul's loop](docs/results/matmul_loop.md)) |
 | Memory latency 8 → 10 cycles | 1.02× | 1.02× | the caches hide almost all of it |
 | **Everything** (1 core, no forwarding, no caches) | **15.63×** | **11.07×** | |
 
@@ -132,16 +141,21 @@ How much slower the two-core run becomes when one feature is switched off:
   <img src="docs/results/ablation_matmul.svg" width="49%" alt="MatMul: times slower per feature switched off" />
 </p>
 
-### Resources
+### Resource utilization
 
-Post-route on xc7a100tcsg324-1, timing met at 50 MHz:
+Post-route utilization of the release bitstream `fpga-v2` on the `xc7a100tcsg324-1`, as reported by
+Vivado. To see the same, open [`build/releases/fpga-v2/post_route.dcp`](build/releases/fpga-v2/) in
+Vivado and run `report_utilization`:
 
-| Resource | Used | Available | Utilization |
-| --- | ---: | ---: | ---: |
-| LUT | 9,982 | 63,400 | 15.7 % |
-| Flip-flops | 8,230 | 126,800 | 6.5 % |
-| Block RAM tiles | 53 | 135 | 39.3 % |
-| DSP48E1 | 8 | 240 | 3.3 % |
+<p align="center">
+  <img src="docs/img/vivado_utilization.png" width="100%" alt="Vivado utilization report of the release design" />
+</p>
+
+`top_fpga` is the whole design; `u_soc` is the two cores, caches and peripherals; `dbg_hub` and
+`u_vio_hook` are the JTAG hook that lets scripts drive the switches and buttons.
+Timing met at 50 MHz: WNS +0.262 ns, WHS +0.041 ns
+([`timing_summary.rpt`](build/releases/fpga-v2/reports/timing_summary.rpt)). What each feature costs:
+[`docs/results/area.md`](docs/results/area.md); each module alone: [`docs/results/synth_modules.md`](docs/results/synth_modules.md).
 
 ---
 
@@ -179,9 +193,11 @@ Set the switches, then press **BTNC**: the setting is saved and the program runs
 | **BTNL** | Display: count ↔ rate (hit %, CPI) |
 | **BTNR** | Display: core 0 ↔ core 1 |
 
-After a run the display shows each result for 3 s with a label, for example `Cy 38660` (cycles in
-thousands), `IH0. 99.99` (I-cache hit %), `dH0. 98.53` (D-cache hit %), `CPI0. 1.64` and
-`Ar0.  8.98` (arbiter wait %). **LED0** = run done, **LED1** = checksum correct.
+After a run the display shows each result for 3 s with a label, in a loop. MatMul on two cores
+(`0x00F7`) on the board: `Cy   297` (cycles in thousands) → `IH0. 99.99` (core 0 I-cache hit %) →
+`dH0. 99.25` (D-cache hit %) → `CPI0. 2.20` → the same for core 1 → `Ar0. 14.20` and `Ar1.  7.05`
+(arbiter wait %). Rates are cut, not rounded, to two decimals. **LED0** = run done, **LED1** = checksum
+correct.
 
 ---
 
@@ -194,7 +210,7 @@ thousands), `IH0. 99.99` (I-cache hit %), `dH0. 98.53` (D-cache hit %), `CPI0. 1
 │   ├── mem/             shared D-cache, PLRU and FIFO replacement, latency model, instruction and data BRAMs
 │   ├── soc/             clock and reset, switch config, arbiter, LOCK / BARRIER, counters, MMIO
 │   ├── io/              UART, result streamer, 7-segment driver, JTAG VIO hook
-│   ├── board/           Nexys A7 constraints
+│   ├── board/           Nexys A7 pin constraints, a stand-in driver for the bring-up build
 │   ├── lab5a/           the lab 5A pipeline the core was developed from
 │   ├── soc_top.v        the SoC
 │   └── top_fpga.v       the Nexys A7 top level
@@ -203,9 +219,11 @@ thousands), `IH0. 99.99` (I-cache hit %), `dH0. 98.53` (D-cache hit %), `CPI0. 1
 ├── fw/                  firmware in C: Game of Life, Mandelbrot, MatMul, test programs
 ├── host/                laptop dashboard
 ├── scripts/             build, program and test scripts
+├── tests/               run_all.py: the software checks (simulator, firmware, dashboard)
 ├── tools/               Python reference models used by the testbenches
+├── modules/, sw/, constraints/   a separate first implementation of the SoC pieces, not used by the build
 ├── docs/                PROTOCOL.md (memory map and registers), spec/ (one page per module), results/
-└── build/releases/      pre-built bitstream (fpga-v1)
+└── build/releases/      release fpga-v2: bitstream, routed design, reports, board results
 ```
 
 ---
@@ -241,8 +259,48 @@ Every RTL file has a self-checking testbench that prints `PASS` or `FAIL`.
 | `rtl/io/seg7_bcd.v` | 8-digit 7-segment driver with letters | `tb_seg7_bcd` |
 | `rtl/io/vio_hook.v` | JTAG hook: scripts drive switches and buttons | `tb_vio_hook` |
 | `rtl/soc_top.v` · `rtl/top_fpga.v` | The SoC · the Nexys A7 top level | `tb_top` |
+| `rtl/board/shell_driver.v` | Stands in for the cores in the early board bring-up build (no cores) | (board check only) |
 
 Each module also has a one-page specification in [`docs/spec/`](docs/spec/).
+
+---
+
+## Software
+
+| File | What it does |
+| --- | --- |
+| **Firmware** (`fw/`, C for the cores) | |
+| `boot.S`, `link.ld` | Start-up code for both cores (one stack each) and the memory map |
+| `main.c` | Reads the switch setting and runs the selected program on every running core |
+| `gol.c` · `mandel.c` · `matmul.c` | Game of Life · Mandelbrot · matrix multiply, rows split between the two cores |
+| `display.c` | After the run: the 7-segment tour of counters and the counter browser |
+| `util.c`, `spectra.h` | Shared helpers, register addresses, LOCK and BARRIER calls |
+| `tests/t_*.c` | Small test programs: hazards, M extension, caches, LOCK, BARRIER |
+| `build.py` | Compiles every program with RISC-V GCC into `imem.hex` / `dmem.hex` |
+| **Laptop** (`host/`, Python) | |
+| `spectra_host.py` | Reads the board's UART, saves every run and serves the dashboard |
+| `dashboard.html` | The dashboard: Live, Compare, Runs, Simulate and Demo guide tabs |
+| `protocol.py` | Decodes the UART packets (BEGIN, ROW, STATS, ...) and checks their CRC |
+| `uart_packets.py` | Captures the UART for a few seconds and lists the packets, for debugging |
+| **Reference models** (`tools/`, `sim/`) | |
+| `sim/rv32sim.c` | Instruction simulator of the whole SoC (two harts, caches, counters); gives the expected trace and UART output |
+| `golden.py` | Python versions of every program: the correct checksum for each |
+| `mext_ref.py` · `cache_model.py` · `arbiter_ref.py` · `seg7_model.py` | Reference models for MUL/DIV, the caches, the arbiter and the display |
+| `gen_*_vectors.py` | Write the test vectors (`tb/vectors/`) the module testbenches compare against |
+| `make_refs.py` · `tracecmp.py` | Make the reference traces from rv32sim · compare an RTL trace with it |
+| `check_maps.py` | Checks that `docs/PROTOCOL.md` and `fw/spectra.h` give the same addresses |
+| **Scripts** (`scripts/`) | |
+| `check_all.py` | Runs every software check and every testbench |
+| `tests/run_all.py` | The 11 groups of software checks: reference models, firmware, rv32sim, golden checksums, cache model, packets, display, trace compare, fault injection, dashboard host |
+| `regress.py`, `sim.tcl` | Run the testbenches in `sim/tests.txt` in xsim |
+| `fpga_build.py`, `build.tcl` | Synthesis, implementation and bitstream, then checks timing and resources |
+| `program.tcl` · `program_flash.tcl` | Load the bitstream over JTAG · write it to the board's flash |
+| `updatemem.py` | Puts a new program into a built bitstream without running synthesis again |
+| `board_regress.py`, `board.tcl` | Run a list of switch settings on the board and check every run |
+| `board_browser.py` · `board_soak.py` | Check the 7-segment display on the board · rerun after random resets |
+| `synth_ooc.tcl` | Synthesise and route one module alone, for its resources and timing |
+| `ablation.py` · `area.py` · `numbers.py` | Feature speed-ups · feature costs in LUTs · every headline number with its source |
+| `build_bitstream.tcl`, `ablation_sweep.tcl`, `dashboard.py`, `uart_monitor.py` | Build, sweep, dashboard and serial monitor of the separate design in `modules/` and `sw/` |
 
 ---
 
@@ -252,34 +310,73 @@ Correctness was checked at four levels, from single modules up to the board:
 
 | Level | What is checked | Compared against |
 | --- | --- | --- |
-| **Module** | Each RTL file in its own testbench (directed and random inputs) | Python reference models in `tools/` |
+| **Module** | Each RTL file in its own testbench | expected values in the testbench, or test vectors from the Python models in `tools/` |
 | **Core** | One core runs the test programs; every retired instruction is traced | `rv32sim`, our instruction simulator |
-| **SoC** | The whole SoC runs Game of Life, Mandelbrot and MatMul on 1 and 2 cores | the correct checksum, UART output and counters |
-| **Board** | The demo programs in many switch settings on the Nexys A7 | the same checksums |
+| **SoC** | The whole SoC runs MatMul on 1 and 2 cores; its run cycles equal the board's (535,596 and 297,020) | the correct checksum, every UART packet and the counters |
+| **Board** | 239 runs (demo, latency, ablation, 120 random settings, test programs), 108 display readings, 40 runs after random resets ([`docs/results/board_regress.md`](docs/results/board_regress.md)) | rv32sim: the checksum and every UART packet |
 
-Run everything (Vivado's xsim simulator):
+Which RTL path each check in the test programs exercises: [`docs/spec/test_map.md`](docs/spec/test_map.md).
+
+### Running the testbenches
+
+Needs Vivado (its xsim simulator) and Python. Every test is one line in
+[`sim/tests.txt`](sim/tests.txt): the test name, its file list and the testbench.
 
 ```bash
-python scripts/check_all.py          # software checks + every testbench
-python scripts/regress.py dcache     # one testbench by name
+python scripts/check_all.py                 # everything: software checks + all 35 tests
+python scripts/regress.py                   # all 35 RTL tests, with a PASS/FAIL table
+python scripts/regress.py <name> [<name>]   # chosen tests, for example: dcache icache core_matmul
 ```
 
-To watch a testbench in the Vivado simulator GUI, run it once with `regress.py`, then open its snapshot:
-`cd build/<commit>/regress/<name>` and `xsim <testbench>_snap -gui`.
+Any testbench can also be run straight through Vivado, using its file list from `sim/`:
+
+```bash
+vivado -mode batch -nojournal -nolog -source scripts/sim.tcl -tclargs -f sim/<module>.f -top tb_<module>
+```
+
+(add `-hex <dir>` when the line in `sim/tests.txt` lists one, for example `-hex tb/vectors`).
+
+Each run prints `SIM PASS <testbench>` or `SIM FAIL <testbench>: <reason>`. Its logs stay in its run
+directory: `build/<commit>/regress/<name>/` (regress.py) or `build/<commit>/sim/tb_<module>/` (direct).
+To see the waveforms, open that run in the simulator GUI: `cd` into the run directory, then
+`xsim tb_<module>_snap -gui`.
 
 ---
 
 ## Quick start
 
+```bash
+git clone https://github.com/DivyamCS/SPECTRA_hardware_lab.git
+cd SPECTRA_hardware_lab
+```
+
+What each part needs (on macOS write `python3` for `python`):
+
+| To | Windows / Linux | macOS |
+| --- | --- | --- |
+| Use the dashboard and simulate, no board | Python 3.9+, a C compiler for rv32sim (gcc, or `pip install ziglang==0.13.0`) | Python 3.9+, the Xcode command-line tools (`xcode-select --install`) |
+| Program the board, see live runs | Vivado 2025.2 or Vivado Lab Edition, `pip install pyserial` | Vivado does not run on macOS; a board that boots from its flash still streams to the dashboard (`pip install pyserial`) |
+| Run the tests, rebuild | Vivado 2025.2, and xPack `riscv-none-elf-gcc` or `pip install ziglang==0.13.0` for the firmware | not possible (no Vivado) |
+
+Vivado's commands need its environment first: `C:\AMDDesignTools\2025.2\Vivado\settings64.bat` (Windows) or
+`source <install>/Vivado/settings64.sh` (Linux), or add Vivado's `bin` folder to `PATH`.
+
 ### On the board (pre-built bitstream)
 
 ```bash
-vivado -mode batch -nojournal -nolog -notrace -source scripts/program.tcl -tclargs build/releases/fpga-v1/top_fpga.bit
+vivado -mode batch -nojournal -nolog -notrace -source scripts/program.tcl -tclargs build/releases/fpga-v2/top_fpga.bit
 pip install pyserial
-python host/spectra_host.py --port COM8          # Linux / macOS: --port /dev/ttyUSB1
+python host/spectra_host.py --port COM8
 ```
 
-Set the switches (for example `0x0097`), press **BTNC**, and watch the run at <http://localhost:8000>.
+`--port` is the board's USB serial port: Windows Device Manager -> Ports ("USB Serial Port (COMx)");
+Linux `ls /dev/ttyUSB*` (usually `/dev/ttyUSB1`); macOS `ls /dev/tty.usbserial*`. Set the switches (for
+example `0x0097`), press **BTNC**, and watch the run at <http://localhost:8000>.
+
+To start the board without a laptop: write the design into its flash once
+(`vivado -mode batch -source scripts/program_flash.tcl -tclargs build/releases/fpga-v2/flash/top_fpga.mcs --yes-program-the-flash`)
+and set jumper JP1 to QSPI. At power-on it runs once with the switches as they are; every BTNC then
+starts a new run.
 
 ### Without a board
 
@@ -294,12 +391,13 @@ exact, the cycle counts are only estimates. Only runs marked `board` are measure
 
 ```bash
 python fw/build.py                   # firmware  -> fw/build/
-python scripts/check_all.py          # all tests
+python scripts/check_all.py          # all tests (builds the firmware into a temporary folder, changes no file)
 python scripts/fpga_build.py         # synthesis, implementation -> build/<commit>/impl/top_fpga/
 ```
 
-Tools: Python 3.9+, Vivado 2025.2 (part `xc7a100tcsg324-1`), a C compiler for `rv32sim`, and the xPack
-`riscv-none-elf-gcc` to rebuild the firmware (built images are included).
+`fpga_build.py` checks the resources against `scripts/fpga_budget.txt` (the release build), so use
+Vivado 2025.2. A rebuild of the release RTL gives the same configuration data as
+`build/releases/fpga-v2/top_fpga.bit`; only the build time in the file header differs.
 
 ---
 

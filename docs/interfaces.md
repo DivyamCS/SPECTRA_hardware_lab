@@ -1,8 +1,5 @@
 # SPECTRA module interfaces v1.0
 
-Status: **frozen v1.0** (16 Oct 2026). Any change
-bumps the version and re-runs every testbench that uses the interface (modular rules).
-
 Modules connect only through these four interfaces. No module reads another module's internal
 signals. All signals are synchronous to the 50 MHz core clock `clk`, active high, and sampled on
 the rising edge; `rst` is the synchronised reset from `clk_rst` (active high). Numbers come from

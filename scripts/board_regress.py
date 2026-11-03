@@ -1,6 +1,6 @@
 """board_regress.py - run a list of switch settings on the board and check every run.
 
-    python scripts/board_regress.py LIST [--bit FILE.bit | --ltx FILE.ltx] [--image DIR] [--out DIR]
+    python scripts/board_regress.py LIST [--bit FILE.bit | --ltx FILE.ltx] [--image DIR] [--out DIR] [--port PORT]
 
 LIST: a text file, one setting per line ("#" comments): either "NAME CONFIG_HEX" or the
 scripts/board_random_106.txt format "PROGRAM INDEX CONFIG XSIM"; or "--configs 00f3,00f7".
@@ -10,7 +10,7 @@ programmed earlier. --image is the program in the bitstream (default fw/build/de
 For each setting: rv32sim gives the reference UART stream (-u) and its cycle count; one Vivado
 session (scripts/board.tcl) sets the switches through the VIO, pulses reset, waits long enough
 for the run and its UART stream (1.5 x the reference cycles at 50 MHz + the stream at 100 kB/s
-+ 0.4 s) and reads the LEDs; meanwhile this script records COM8 the whole time. The recording
++ 0.4 s) and reads the LEDs; meanwhile this script records the UART (--port, default COM8) the whole time. The recording
 is split into runs at each BEGIN packet; run k must belong to setting k. Each run passes when:
   * BEGIN's CONFIG = the setting; LED0 and LED1 on (done, checksum = golden); uart_busy = 0 when
     read (the run and its stream finished in the wait);

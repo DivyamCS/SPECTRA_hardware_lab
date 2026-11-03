@@ -1,8 +1,8 @@
-# Fault injection on the simulated board, 16 Oct 2026
+# Fault injection on the simulated board
 
 rv32sim's `-F` faults inject the three pipeline bugs the tests must catch, between RUN_START and
 RUN_STOP: `stale1` (no forwarding), `stale2` (register file not write-through), `nosquash` (the
-instruction after a taken branch executes). Firmware: gcc build. Cycle cap `-n 50000000`.
+instruction after a taken branch executes). Cycle cap `-n 50000000`.
 "Caught" = the run does not end with the golden result.
 
 | Image (CONFIG) | No fault | stale1 | stale2 | nosquash |
@@ -26,6 +26,6 @@ Per-check result on t_hazard (which CHECK failure paths executed):
 | Fault | Failed checks |
 | --- | --- |
 | none | none |
-| stale1 | not observable: the suite's own code is corrupted before check 1 (cycle limit at pc 0x78) |
+| stale1 | not observable: the suite's own code is corrupted before check 1 (cycle limit at pc 0x74) |
 | stale2 | 2, 4, 7, 8, 9, 10, 11, 12, 13, 14, 15, 17, 21, 23 |
 | nosquash | 19, 21, 24, 26 (then an illegal instruction) |

@@ -4,7 +4,7 @@ The starting point: every rule of `docs/PROTOCOL.md` section 1 and every core-re
 the design, against what the lab 5A core (`rtl/lab5a`, plus two fixes: boot bubble, SRA sign) did.
 Evidence column: how it was checked.
 
-## 1. What the lab 5A core is (from reading the RTL and)
+## 1. What the lab 5A core is (from reading the RTL)
 
 * 3 stages: IF/ID (`IF_ID.v`, decode + ID/EX register), EX (`execute.v`, ALU, branch, EX/WB
   register), MEM/WB (`wb.v`, store formatting, load alignment, squash counter).
@@ -28,8 +28,8 @@ Evidence column: how it was checked.
 
 | # | Bug | Fix | Evidence |
 | --- | --- | --- | --- |
-| B1 | The instruction at RESET executed twice after reset | `pipe.v` boot bubble (commit 629fb60) | lab 5A commit trace = rv32sim: 0 differences |
-| B2 | SRA/SRAI shifted in zeros (unsigned `?:` context) | `execute.v` `$unsigned($signed(a) >>> s)` (commit ccb7e2a) | same |
+| B1 | The instruction at RESET executed twice after reset | `pipe.v` boot bubble (marked "SPECTRA fix") | lab 5A commit trace = rv32sim: 0 differences |
+| B2 | SRA/SRAI shifted in zeros (unsigned `?:` context) | `execute.v` `$unsigned($signed(a) >>> s)` (marked "SPECTRA fix") | same |
 
 ## 3. PROTOCOL.md section 1 (system rules)
 
@@ -87,9 +87,9 @@ Evidence column: how it was checked.
   decodes correctly") covers it.
 
 
-## 7. Firmware-rule review, 16 Oct 2026
+## 7. Firmware rules
 
-Checked on the gcc build (commit after spec-v1.0) by reading the sources and the 6 listings:
+Checked by reading the sources and the 6 listings:
 
 | Rule | Result | How checked |
 | --- | --- | --- |
@@ -98,5 +98,4 @@ Checked on the gcc build (commit after spec-v1.0) by reading the sources and the
 | "BARRIER is `lw zero`" | **does not hold as written**: boot.S loads BARRIER into `t3` on purpose, and C `barrier()` compiles to `lw a4, 12(...)` | listings |
 
 Consequence: the hardware rule "loads to x0 still access memory" stays (lab 5A obeys it; the
-RTL keeps it), but no current program relies on it. PROTOCOL.md v1.1 and interfaces.md
-1.0.1 reworded accordingly.
+RTL keeps it), but no current program relies on it.

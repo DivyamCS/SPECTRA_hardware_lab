@@ -164,7 +164,7 @@ select,input[type=range]{background:var(--panel2);color:var(--ink);border:1px so
       After each run the 7-segment display tours the results, 3 s per item: cycles (thousands), then for each core the I-cache hit %, D-cache hit % and CPI,
       and with two cores each core's arbiter wait %. LED15:14 and LED11 show which item it is, with the same meaning as the manual browser; LED13 = core 1;
       LED10 = tour on. Moving SW15:14 or pressing BTNL / BTNR switches to the manual browser; BTNU starts the tour again.
-      "board" results were measured on the FPGA (docs/results/board_soc.md); the other cases show their numbers on the Live tab after the run.</div>
+      "board" results were measured on the FPGA (docs/results/board_regress.md); the other cases show their numbers on the Live tab after the run.</div>
     <table><thead><tr><th>#</th><th>Case</th><th>Switches (SW15 &#8230; SW0)</th><th>Up</th><th>CONFIG</th><th>Result</th><th>Say</th><th></th></tr></thead>
     <tbody id="guide-body"></tbody></table>
   </div>
@@ -373,7 +373,7 @@ $("sim-ablate").addEventListener("click", () => {
 
 // ---------- demo guide ----------
 const GUIDE = [
-  ["The story", "Game of Life, 1 core, D-cache off", 0x0091, "193,211 k cycles (3.86 s)", "Every data access goes to slow memory."],
+  ["The story", "Game of Life, 1 core, D-cache off", 0x0091, "193,212 k cycles (3.86 s)", "Every data access goes to slow memory."],
   ["The story", "Game of Life, 1 core, D-cache on", 0x0093, "70,337 k (1.41 s): 2.75x faster", "Same program, same checksum, only the cache switch changed."],
   ["The story", "Game of Life, 2 cores", 0x0097, "38,660 k (0.77 s): 1.82x over 1 core", "The second core takes half the rows; the shared cache and the arbiter cost some of the 2x."],
   ["The story", "MatMul 32x32, 1 core", 0x00F3, "535 k (10.7 ms)", "i-k-j order, so B and C stream through the cache."],

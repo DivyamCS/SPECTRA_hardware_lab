@@ -30,8 +30,7 @@ and data in BRAM. DC changes cycle counts only, never results.
 4. Write-back, write-allocate: store hit writes the line and sets dirty; store miss allocates the
    line, then writes it; a dirty victim is written back before the refill.
 5. DC = 0 bypass: arrays untouched, no hit/miss pulses.
-6. No coherence is needed: the one D-cache is shared by both cores (private D-caches with
-   snooping are the stretch variant).
+6. No coherence is needed: the one D-cache is shared by both cores.
 
 ## Reset values
 All valid and dirty bits 0, replacement state 0, no burst open.

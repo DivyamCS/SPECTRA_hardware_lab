@@ -1,0 +1,3 @@
+ok   mapping: the design's contents decode to build\<commit>\impl\top_fpga\synth_image exactly (imem, dmem)
+ok   read back: imem and dmem in the design = fw/build/demo exactly
+PASS updatemem: fw/build/demo -> build\<commit>\impl\top_fpga\top_fpga.bit

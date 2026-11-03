@@ -4,10 +4,7 @@ Everything the RTL must do so that the firmware, the simulator (`sim/rv32sim.c`)
 dashboard (`host/`) work unchanged. `fw/spectra.h` holds the same numbers for the firmware;
 `python tools/check_maps.py` fails if this file and `spectra.h` ever disagree.
 
-**Status.** Frozen 16 Oct 2026 (I-cache 2 KB 2-way per core; switch map with SW7 = IC and
-SW15:14 = DISPLAY, as written below). Any change bumps the version and re-runs
-`scripts/check_all.py`. The module
-interfaces built on this contract are in `docs/interfaces.md`.
+The module interfaces built on this contract are in `docs/interfaces.md`.
 
 **Change log.** v1.1 (16 Oct 2026): section 8, trace comparison also stops at the
 first CYCLES read; found when FWD = 1 and FWD = 0 traces of t_hazard differed only after it. Section 1,

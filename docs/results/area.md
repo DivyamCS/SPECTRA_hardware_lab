@@ -6,12 +6,13 @@ feature's hardware takes. With a removal parameter at 0 the design behaves as wi
 
 | Variant | Parameter | Removes | LUT | FF | BRAM tiles | DSP | WNS (ns) | Cost: LUT | FF | BRAM | DSP |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| base | - | every feature (the demo build) | 10,329 | 8,223 | 53 | 8 | 0.272 | - | - | - | - |
-| no_fwd | HAS_FWD=0 | forwarding muxes | 10,105 | 8,203 | 53 | 8 | 1.423 | 224 | 20 | 0 | 0 |
-| no_md | HAS_MD=0 | MUL / DIV units | 9,565 | 7,946 | 53 | 0 | 0.150 | 764 | 277 | 0 | 8 |
-| no_icache | HAS_ICACHE=0 | I-caches (both cores) | 9,530 | 7,538 | 50 | 8 | 0.083 | 799 | 685 | 3 | 0 |
-| no_dcache | HAS_DCACHE=0 | D-cache | 8,549 | 7,073 | 49 | 8 | 2.595 | 1780 | 1150 | 4 | 0 |
-| no_core1 | HAS_CORE1=0 | second core (with its I-cache) | 7,020 | 5,784 | 51 | 4 | 0.925 | 3309 | 2439 | 2 | 4 |
-| no_vio | HAS_VIO=0 | VIO hook and JTAG debug hub | 9,482 | 6,711 | 53 | 8 | 0.152 | 847 | 1512 | 0 | 0 |
+| base | - | every feature (the demo build) | 9,982 | 8,230 | 53 | 8 | 0.262 | - | - | - | - |
+| no_fwd | HAS_FWD=0 | forwarding muxes | 10,099 | 8,215 | 53 | 8 | 2.551 | -117 | 15 | 0 | 0 |
+| no_md | HAS_MD=0 | MUL / DIV units | 9,353 | 7,801 | 53 | 0 | 0.451 | 629 | 429 | 0 | 8 |
+| no_icache | HAS_ICACHE=0 | I-caches (both cores) | 9,380 | 7,549 | 50 | 8 | 0.381 | 602 | 681 | 3 | 0 |
+| no_dcache | HAS_DCACHE=0 | D-cache | 8,399 | 7,210 | 49 | 8 | 0.698 | 1583 | 1020 | 4 | 0 |
+| no_core1 | HAS_CORE1=0 | second core (with its I-cache) | 7,055 | 5,727 | 51 | 4 | 0.404 | 2927 | 2503 | 2 | 4 |
+| no_vio | HAS_VIO=0 | VIO hook and JTAG debug hub | 9,138 | 6,718 | 53 | 8 | 0.256 | 844 | 1512 | 0 | 0 |
 
 Device: 63,400 LUT, 126,800 FF, 135 BRAM tiles, 240 DSP. Every variant: timing met.
+A cost below 0 means the feature is smaller than the difference Vivado's optimisation and placement make between two builds.

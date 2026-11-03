@@ -1,8 +1,8 @@
 """board_browser.py - the 7-segment tour and browser on the board.
 
-    python scripts/board_browser.py --ltx FILE.ltx [CONFIG ...]      default 00f3 00f7
+    python scripts/board_browser.py [--port PORT] --ltx FILE.ltx [CONFIG ...]      default COM8; 00f3 00f7
 
-For each CONFIG: records COM8, sets the switches through the VIO and resets, waits for the run,
+For each CONFIG: records the UART, sets the switches through the VIO and resets, waits for the run,
 reads the display (the tour's first item; the wait is 1.2 x rv32sim's run at 50 MHz + 0.3 s), then walks tb/top/run_browser.py's 15 steps (every
 SW15:14 setting in count mode, BTNL into rate mode, every setting, BTNR, back) reading SEG7,
 SEG7_DP, SEG7_TXT and the LEDs after each; then BTNU (tour again) and a 3.3 s wait (the tour's
@@ -30,6 +30,11 @@ import protocol  # noqa: E402
 
 def main():
     a = sys.argv[1:]
+    port = "COM8"
+    if "--port" in a:
+        i = a.index("--port")
+        port = a[i + 1]
+        del a[i:i + 2]
     if len(a) < 2 or a[0] != "--ltx":
         sys.exit(__doc__)
     ltx, configs = a[1], [c.lower() for c in a[2:]] or ["00f3", "00f7"]
@@ -51,7 +56,7 @@ def main():
                 cmds += ["press", "BTNR"]
             cmds += ["wait", "150", "read"]
         cmds += ["press", "BTNU", "wait", "150", "read", "wait", "3300", "read", "pins"]
-        rec = board_regress.Recorder("COM8")
+        rec = board_regress.Recorder(port)
         rec.start()
         r = subprocess.run(["vivado", "-mode", "batch", "-nojournal", "-nolog", "-notrace", "-source", "scripts/board.tcl",
                             "-tclargs"] + cmds, cwd=ROOT, capture_output=True, text=True, shell=os.name == "nt")

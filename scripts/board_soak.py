@@ -1,12 +1,12 @@
 """board_soak.py - reset robustness on the board: runs cut off by BTNC, then rerun.
 
-    python scripts/board_soak.py --ltx FILE.ltx [N] [SEED]          default N = 40, SEED = 7
+    python scripts/board_soak.py [--port PORT] --ltx FILE.ltx [N] [SEED]          default COM8, N = 40, SEED = 7
 
 N iterations, each with a seeded random setting (MatMul, Mandelbrot, Game of Life; 1 or 2 cores;
 caches, latency, replacement, write policy random): set the switches through the VIO, reset,
 wait a random 1 ms .. 0.8 x the run (the run is cut off mid-way, often mid-packet on the UART),
 reset again, wait for the whole run and read the LEDs. Every 10th iteration first sends a
-burst of 10 resets 5 ms apart. COM8 is recorded throughout.
+burst of 10 resets 5 ms apart. The UART is recorded throughout.
 
 Each iteration passes when the completed run (the last BEGIN of its CONFIG before the next
 iteration) has LED0 and LED1 on and its bytes, from BEGIN to STATS, parse without an error and
@@ -31,6 +31,11 @@ import simpath  # noqa: E402
 
 def main():
     a = sys.argv[1:]
+    port = "COM8"
+    if "--port" in a:
+        i = a.index("--port")
+        port = a[i + 1]
+        del a[i:i + 2]
     if len(a) < 2 or a[0] != "--ltx":
         sys.exit(__doc__)
     ltx = a[1]
@@ -64,7 +69,7 @@ def main():
         cmds += ["reset", "wait", str(cut), "reset", "wait", str(full), "read"]
     cmds += ["pins"]
     print("board_soak: %d iterations, %d cut-off runs, %d reset bursts" % (n, n, sum(b for *_, b in its)), flush=True)
-    rec = board_regress.Recorder("COM8")
+    rec = board_regress.Recorder(port)
     rec.start()
     r = subprocess.run(["vivado", "-mode", "batch", "-nojournal", "-nolog", "-notrace", "-source", "scripts/board.tcl",
                         "-tclargs"] + cmds, cwd=ROOT, capture_output=True, text=True, shell=os.name == "nt")

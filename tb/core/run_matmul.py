@@ -1,5 +1,5 @@
 """run_matmul.py - regression entry: tb/core/run.py demo 00f3 00f2 (MatMul, one core, FWD = 1, FWD = 0 and IC = 0). Game of Life and Mandelbrot take 3-20 minutes each in xsim, so they are
-run at merges (docs/results/core_ideal.md), not on every check_all."""
+not run on every check_all."""
 import os
 import sys
 
