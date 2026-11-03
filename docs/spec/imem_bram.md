@@ -26,7 +26,7 @@ core 0, port B for core 1, so the cores never wait for each other on fetches.
 
 ## Behaviour
 1. Read-only during a run; both ports read in the same cycle independently.
-2. Must infer as block RAM so `scripts/updatemem.tcl` can swap programs into a built
+2. Must infer as block RAM so `scripts/updatemem.py` can swap programs into a built
    bitstream.
 
 ## Reset values

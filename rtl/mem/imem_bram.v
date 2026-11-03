@@ -3,7 +3,7 @@
 // imem_bram - 16 KB instruction memory, 4K x 32, two read ports (spec: docs/spec/imem_bram.md).
 // Port A feeds core 0, port B core 1; each is a synchronous read with 1-cycle latency, and both
 // may read any addresses (the same one included) in the same cycle. Read-only during a run.
-// Inferred as block RAM (4 RAMB36 in true dual-port mode) so scripts/updatemem.tcl
+// Inferred as block RAM (4 RAMB36 in true dual-port mode) so scripts/updatemem.py
 // can swap programs into a built bitstream. Initial contents: INIT_FILE (imem.hex).
 
 module imem_bram #(
