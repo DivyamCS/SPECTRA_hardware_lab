@@ -1,8 +1,8 @@
-# mul_unit (spec v1.0)
+# mul_unit (spec v1.1)
 
 | Item | Value |
 | --- | --- |
-| File | rtl/core/mul_unit.v |
+| File | rtl/core/mul_unit.v (the project's ports) around rtl/core/mul.v |
 | Testbench | tb/tb_mul_unit.v |
 | Vectors | tb/vectors/mul_vectors.mem from `tools/gen_vectors.py` (40,676 lines) |
 | Interfaces | none |
@@ -38,4 +38,5 @@ All vector lines (edge cases and random pairs) for all 4 operations; every resul
 ## Change log
 | Version | Date | Change |
 | --- | --- | --- |
-| 1.0 | 16 Oct 2026 | First version, approved by Divyam |
+| 1.0 | 16 Oct 2026 | First version |
+| 1.1 | 25 Oct 2026 | the unit is mul.v behind a port adapter, fixed to the spec: done after 3 cycles in EX, back-to-back start, synchronous reset |

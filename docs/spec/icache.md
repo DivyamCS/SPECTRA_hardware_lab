@@ -31,7 +31,7 @@ mean something.
 | `ic_hit`, `ic_miss` | out | 1 each | 1-cycle pulses per fetch when IC = 1 (perf_counters) |
 
 ## Behaviour
-1. 64 sets, index `addr[9:4]`, tag `addr[31:10]`, 2 ways, FIFO replacement through repl_fifo with way mask 0011
+1. 64 sets, index `addr[9:4]`, tag `addr[31:10]`, 2 ways, FIFO replacement through fifo (2 ways)
    (PROTOCOL.md section 6): one pointer per set, moved past the way filled at the end of each refill.
 2. IC = 1, hit: `fetch_ready` the cycle after `fetch_req`, like a synchronous BRAM: no stall.
 3. IC = 1, miss: a 4-word line burst (L + 4 cycles), lowest-numbered invalid way, else the FIFO
@@ -52,5 +52,6 @@ sequence and cycle counts equal to the Python model.
 ## Change log
 | Version | Date | Change |
 | --- | --- | --- |
-| 1.0 | 16 Oct 2026 | First version, approved by Divyam |
+| 1.0 | 16 Oct 2026 | First version |
 | 1.1 | 24 Oct 2026 | FIFO replacement (repl_fifo) instead of the 1-bit LRU |
+| 1.2 | 25 Oct 2026 | the FIFO is fifo.v (2 ways) instead of repl_fifo |

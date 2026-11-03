@@ -1,8 +1,8 @@
-# div_unit (spec v1.0)
+# div_unit (spec v1.1)
 
 | Item | Value |
 | --- | --- |
-| File | rtl/core/div_unit.v |
+| File | rtl/core/div_unit.v (the project's ports) around rtl/core/div.v |
 | Testbench | tb/tb_div_unit.v |
 | Vectors | tb/vectors/div_vectors.mem from `tools/gen_vectors.py` |
 | Interfaces | none |
@@ -40,4 +40,5 @@ cycles; a watchdog fails the TB if `done` never comes. PASS = 0 mismatches.
 ## Change log
 | Version | Date | Change |
 | --- | --- | --- |
-| 1.0 | 16 Oct 2026 | First version, approved by Divyam |
+| 1.0 | 16 Oct 2026 | First version |
+| 1.1 | 25 Oct 2026 | the unit is div.v behind a port adapter, fixed to the spec: done after 34 cycles in EX, back-to-back start, fixed latency for divide-by-zero and overflow |
