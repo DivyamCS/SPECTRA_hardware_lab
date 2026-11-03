@@ -381,11 +381,17 @@ starts a new run.
 ### Without a board
 
 ```bash
+python host/spectra_host.py --replay build/releases/fpga-v2/board/demo_uart.bin --source board   # once
 python host/spectra_host.py          # dashboard at http://localhost:8000
 ```
 
-The **Simulate** tab runs any switch setting on `rv32sim`. These runs are marked `sim`: the results are
-exact, the cycle counts are only estimates. Only runs marked `board` are measurements.
+The first command loads the board's own UART recording from the release tests: 48 real runs (every
+demo case and memory latency) with their measured cycles, marked `board`. The **Simulate** tab adds runs
+for any other switch setting on `rv32sim`, marked `sim`: the results are exact, the cycle counts are
+estimates. Time on the dashboard is cycles / 50 MHz.
+
+To compare runs: on the **Compare** tab pick a program and press **Pick latest of each config** (or tick
+runs on the **Runs** tab), then **Play side by side**.
 
 ### Build from source
 
