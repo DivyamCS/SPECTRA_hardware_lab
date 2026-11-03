@@ -33,7 +33,7 @@ misses to core 0's 368, each holding the shared port 14-26 cycles); rv32sim show
 
 ## Watchdog
 
-tb_core, tb_core_dc and tb_top fail a run after 100,000 cycles with no retired instruction.
+tb_core and tb_top fail a run after 100,000 cycles with no retired instruction.
 In tb_top a core parked at BARRIER does not count: it waits by design. Before that rule the
 watchdog fired falsely three times (Mandelbrot halves on two cores - the lighter half's core
 waits about 160 k cycles at the final barrier - and two random settings with IC = 0, where core
@@ -63,9 +63,7 @@ setting, up to 2 h per Game of Life setting); every one of the 120 settings runs
 the board regression instead, from scripts/board_random_106.txt (column xsim marks the 55
 already passed here). The board checks checksum, CONFIG and every UART packet against rv32sim, not
 the instruction trace. Game of Life's RTL in xsim is covered at fixed settings on the whole SoC
-(0093 one core, 0097 two cores) and in the single-core table (Game of Life with the D-cache off and
-on; every
-one golden with 0 trace differences, docs/results/sim_single.md).
+(0093 one core, 0097 two cores).
 
 Setting 14 (10d6, two cores, interleaved): 7,265,297 run cycles (STATS), rv32sim 7,265,316; the
 same setting on one core (10d2) is 14,485,774 in rv32sim: 1.99x. The 14.7 M "cycles" in the log

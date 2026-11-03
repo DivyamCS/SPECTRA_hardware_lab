@@ -28,7 +28,7 @@ Evidence column: how it was checked.
 
 | # | Bug | Fix | Evidence |
 | --- | --- | --- | --- |
-| B1 | The instruction at RESET executed twice after reset | `pipe.v` boot bubble (commit 629fb60) | `tb/lab5a/run_trace.py`: 0 differences |
+| B1 | The instruction at RESET executed twice after reset | `pipe.v` boot bubble (commit 629fb60) | lab 5A commit trace = rv32sim: 0 differences |
 | B2 | SRA/SRAI shifted in zeros (unsigned `?:` context) | `execute.v` `$unsigned($signed(a) >>> s)` (commit ccb7e2a) | same |
 
 ## 3. PROTOCOL.md section 1 (system rules)

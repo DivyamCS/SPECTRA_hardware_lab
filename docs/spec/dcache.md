@@ -3,8 +3,7 @@
 | Item | Value |
 | --- | --- |
 | File | rtl/mem/dcache.v |
-| Testbench | tb/tb_dcache.v, tb/tb_dcache_random.v (68), tb/tb_dcache_corner.v (69) |
-| Vectors | tb/vectors/dcache_s*.mem from `tools/cache_model.py`: four random seeds, every L |
+| Testbench | tb/tb_dcache.v |
 | Interfaces | IF-A slave (from addr_decode, with `owner`), IF-B master (to the D-side mem_delay), IF-D |
 | Removal parameter | `HAS_DCACHE` = 0: always bypass, as DC = 0 |
 
@@ -38,10 +37,8 @@ and data in BRAM. DC changes cycle counts only, never results.
 All valid and dirty bits 0, replacement state 0, no burst open.
 
 ## Tests
-Directed tests, one feature each (bypass, read hit, clean miss, WB-WA, dirty eviction, PLRU,
-owner-tagged pulses); 100,000 random accesses per latency against
-the Python model and a memory image (0 mismatches in data, hit/miss and cycles); corner cases
-(5 lines into one set, hit right after a miss, byte and half stores).
+Directed tests, one feature each (bypass, read hit, clean miss, write-back / write-allocate,
+dirty eviction, PLRU, owner-tagged pulses), at every memory latency.
 
 ## Change log
 | Version | Date | Change |

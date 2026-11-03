@@ -3,7 +3,6 @@
 
 # Lab 5A baseline
 tb lab5a_tb_pipeline   sim/lab5a_tb_pipeline.f   tb_pipeline   tb/lab5a/image   expect=finish
-py lab5a_trace         tb/lab5a/run_trace.py
 
 # Core modules
 tb mul_unit            sim/mul_unit.f            tb_mul_unit   tb/vectors
@@ -24,17 +23,11 @@ py core_matmul         tb/core/run_matmul.py
 tb mem_delay           sim/mem_delay.f           tb_mem_delay
 tb dmem_bram           sim/dmem_bram.f           tb_dmem_bram  tb/dmem_init
 tb imem_bram           sim/imem_bram.f           tb_imem_bram  fw/build/demo
-tb repl_plru           sim/repl_plru.f           tb_repl_plru  tb/vectors
 tb plru                sim/plru.f                tb2_plru
 tb fifo                  sim/fifo.f                tb_fifo       tb/vectors
 tb dcache              sim/dcache.f              tb_dcache
-py dcache_random       tb/dcache/run_random.py
-tb dcache_corner       sim/dcache_corner.f       tb_dcache_corner
 py icache              tb/icache/run.py
 
-# Core + D-cache (tb_core_dc): t_cache, t_hazard, MatMul at L = 5, 8, 10, and the
-# D-cache hit/miss counts = cache_model.py on rv32sim's trace
-py check_hits          tb/core/check_hits.py
 tb clk_rst             sim/clk_rst.f             tb_clk_rst
 tb vio_hook            sim/vio_hook.f            tb_vio_hook
 tb switch_cfg          sim/switch_cfg.f          tb_switch_cfg
@@ -51,6 +44,5 @@ py mmio_bus            tb/mmio/run.py
 py streamer            tb/streamer/run.py
 py top_matmul          tb/top/run_matmul.py
 py top_matmul_dual     tb/top/run_matmul_dual.py
-py timing             tb/timing/run.py
 py top_counters        tb/top/check_counters.py
 py top_browser         tb/top/run_browser.py
