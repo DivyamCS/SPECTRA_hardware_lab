@@ -68,8 +68,8 @@ seconds, with no re-synthesis.
 ## Architecture
 
 Three animated block diagrams, from the whole system down to one core and the shared data side. In each,
-the blocks that one step uses light up, six steps in a loop. Grey = lab block unchanged, pale orange =
-lab block modified, blue = new block.
+the blocks that one step uses light up, six steps in a loop. Pale orange = lab block modified, blue = new
+block, grey = lab block unchanged (Part 2) or outside the FPGA (board, laptop).
 
 ### Part 1 · System
 

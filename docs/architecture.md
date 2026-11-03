@@ -2,8 +2,9 @@
 
 Three block diagrams, from the whole system down to one core and the shared data side. Each one is
 animated: the blocks and wires one step uses light up in orange, six steps in a loop (about 20 s),
-and the caption under the drawing names the step. Block colours follow the lab: grey = lab block
-unchanged, orange = lab block modified, blue = new block, amber dashed = link to another part.
+and the caption under the drawing names the step. Block colours: orange = lab block modified,
+blue = new block, grey = lab block unchanged (Part 2) or outside the FPGA (board, laptop), amber dashed =
+link to another part.
 
 Every label was checked against the RTL (`rtl/`), [`PROTOCOL.md`](PROTOCOL.md) and the module
 specifications in [`spec/`](spec/).
