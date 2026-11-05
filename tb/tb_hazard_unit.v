@@ -17,6 +17,8 @@
 //     (latency - 1 each) and FWD = 0 costs exactly one extra cycle per distance-1 dependence.
 // Prints one PASS/FAIL line.
 
+// verified & validated
+
 module tb_hazard_unit;
 
     // ---------------------------------------------------------------- DUTs
