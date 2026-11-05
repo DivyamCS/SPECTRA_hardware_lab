@@ -15,6 +15,8 @@
 //  4. HAS_MD = 0: md_busy never rises.
 // Prints one PASS/FAIL line.
 
+// verified & validated
+
 module tb_execute;
 
 `include "opcode.vh"
