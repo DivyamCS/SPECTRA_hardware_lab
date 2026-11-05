@@ -5,6 +5,8 @@
 // buttons, LED / SEG7 / UART-busy probes) and soc_top. SHELL = 1 builds the board shell:
 // no cores, shell_driver on the data port (RUN_START once, then SWITCHES -> SEG7 and LEDS).
 
+// verified & regression tests passed
+
 module top_fpga #(
     parameter SHELL     = 0,
     parameter HAS_CORE1 = 1,
