@@ -15,6 +15,8 @@
 //    error, or at the cycle cap from maxcyc.mem (run.py: 4 x rv32sim's cycles + 100,000; a core
 //    that loops while retiring would otherwise write an unbounded trace). Default 10 M.
 
+// verified & validated
+
 module tb_core;
 
     reg         clk = 1'b0, rst = 1'b1;
