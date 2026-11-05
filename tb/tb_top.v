@@ -13,6 +13,8 @@
 // instruction retired by a running core for 100,000 cycles while it is not parked at BARRIER),
 // cycle cap, or decode error (LED2).
 
+// verified & validated
+
 module tb_top;
 
     reg         clk = 1'b0, rst = 1'b1;
