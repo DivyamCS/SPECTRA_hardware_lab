@@ -6,6 +6,8 @@
 // dependences at distance 2; distance 1 is covered by forwarding in EX (hazard_unit).
 // x1-x31 reset to 0, as lab 5A and rv32sim's initial state.
 
+// verified & regression tests passed
+
 module regfile (
     input  wire        clk,
     input  wire        rst,
