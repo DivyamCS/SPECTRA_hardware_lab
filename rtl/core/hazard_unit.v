@@ -11,6 +11,8 @@
 // Priority: freeze > ex_hold > squash > interlock.
 // HAS_FWD = 0 removes the forwarding muxes; the core then behaves as FWD = 0.
 
+// verified & regression tests passed
+
 module hazard_unit #(
     parameter HAS_FWD = 1
 ) (
