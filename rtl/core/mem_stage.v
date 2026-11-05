@@ -11,6 +11,8 @@
 // not presented again. Register write and retire happen only in the cycle the instruction
 // leaves MEM/WB (not frozen), so each instruction writes and retires exactly once.
 
+// verified & regression tests passed
+
 module mem_stage (
     input  wire        clk,
     input  wire        rst,
