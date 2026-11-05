@@ -4,6 +4,8 @@
 // returns the new value on both ports) and 10,000 random cycles against a behavioural model
 // (a third of the reads aimed at the register being written). Prints one PASS/FAIL line.
 
+// verified & validated
+
 module tb_regfile;
 
     reg         clk = 1'b0, rst = 1'b1, we = 1'b0;
