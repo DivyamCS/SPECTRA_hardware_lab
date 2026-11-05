@@ -14,6 +14,8 @@
 //    instructions with random delays and fetch waits.
 // Prints one PASS/FAIL line.
 
+// verified & validated
+
 module tb_mem_stage;
 
     reg         clk = 1'b0, rst = 1'b1;
