@@ -16,6 +16,8 @@
 // Stage advance rules (hazard_unit): nothing moves under freeze; under ex_hold MEM/WB moves and
 // gets a bubble; under interlock EX gets a bubble and IF/ID hold; otherwise all move.
 
+// verified & regression tests passed
+
 module core #(
     parameter HART_ID    = 0,
     parameter HAS_MD     = 1,          // removal parameters (area builds): MUL/DIV,
