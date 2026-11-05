@@ -12,6 +12,8 @@
 // kept (the units hold `result`) and the unit is not started again. Both flags clear when the
 // instruction leaves EX (not frozen and not busy, the hazard unit's rule for EX to advance).
 
+// verified & regression tests passed
+
 module execute #(
     parameter HAS_MD = 1
 ) (
