@@ -84,6 +84,7 @@ select,input[type=range]{background:var(--panel2);color:var(--ink);border:1px so
     <button data-tab="runs">Runs</button>
     <button data-tab="simulate">Simulate</button>
     <button data-tab="guide">Demo guide</button>
+    <button data-tab="maze">Maze</button>
   </nav>
   <div id="status">connecting…</div>
 </header>
@@ -154,9 +155,57 @@ select,input[type=range]{background:var(--panel2);color:var(--ink);border:1px so
       <button class="ghost" id="sim-cores">1 vs 2 cores, every program</button>
       <button class="ghost" id="sim-ablate">Ablation sweep (this program)</button>
     </div>
-    <div class="note">The simulated board is rv32sim: exact results, approximate cycles. Runs appear on the Runs tab and can be compared like board runs.</div>
+    <div class="note">The simulated board is rv32sim: exact results, approximate cycles. Runs appear on the Runs tab and can be compared like board runs. SW15 on = maze mode: the simulated board has no buttons, so it walks the scripted path; watch it on the Maze tab.</div>
   </div>
 </section>
+<section id="tab-maze" class="hidden">
+  <div class="row">
+    <div class="card" style="flex:0 0 auto">
+      <h2 id="mz-title">Maze mode: waiting for frames (SW15 up at reset)</h2>
+      <div id="mz-hud" style="display:flex;gap:22px;align-items:baseline;margin:2px 0 8px;font-family:var(--mono)">
+        <div><span class="muted" style="font-size:12px">ORBS</span> <span id="mz-orbs" style="font:800 30px var(--mono);color:#ffd36b">-</span></div>
+        <div><span class="muted" style="font-size:12px">TIME</span> <span id="mz-time" style="font:800 30px var(--mono)">-</span></div>
+        <div id="mz-goal" style="font:700 15px var(--mono);flex:1"></div>
+      </div>
+      <canvas id="mz-view" width="320" height="240" style="width:640px;max-width:100%;border-radius:8px"></canvas>
+      <div class="legend"><span>Strip under each column: <i style="background:var(--c0)"></i>core 0 <i style="background:var(--c1)"></i>core 1</span>
+        <span>two lights, 96 shadow rays each per column: your lantern (it follows you) and the beacon on the next orb (its glow shows the way)</span></div>
+      <h2 style="margin-top:14px">Frames the board sent in the last 2 s <span id="mz-combn" style="font-family:var(--mono)"></span></h2>
+      <canvas id="mz-comb" width="640" height="44" style="width:640px;max-width:100%;background:#020814;border-radius:8px"></canvas>
+      <div class="legend"><span>one tick per frame, at the time it arrived: dense = smooth, sparse = choppy</span></div>
+      <h2 style="margin-top:14px">Frame rate (computed by the board, last 30 s)</h2>
+      <canvas id="mz-fps" width="640" height="150" style="width:640px;max-width:100%;background:#020814;border-radius:8px"></canvas>
+    </div>
+    <div class="card" style="flex:1 1 300px">
+      <h2>Frame rate</h2>
+      <div id="mz-fpsbig" style="font:800 64px var(--mono);line-height:1">-</div>
+      <div id="mz-cores" style="font:700 20px var(--mono);margin:6px 0 2px">-</div>
+      <div id="mz-detail" style="font:700 16px var(--mono);margin:2px 0 2px">-</div>
+      <h2 style="margin-top:14px">Settings compared (median frames/s of each session)</h2>
+      <div id="mz-cmp" style="font-family:var(--mono);font-size:13px"></div>
+      <h2 style="margin-top:14px">Measurement</h2>
+      <div id="mz-cyc" class="big">-</div>
+      <div id="mz-sub" class="muted" style="margin:4px 0 14px;font-size:13px"></div>
+      <h2>Map</h2>
+      <canvas id="mz-map" width="192" height="192"></canvas>
+      <div id="mz-chips" class="chips" style="margin-top:10px"></div>
+      <div class="note" id="mz-note"></div>
+      <div class="sel" style="margin-top:12px">
+        <select id="mz-rec"></select>
+        <button class="ghost" id="mz-play">&#9654; Play recording</button>
+      </div>
+      <div class="note"><b>Two ways to see 1 vs 2 cores.</b> Frame-rate mode (SW5 down): 160 columns; 1 core draws half as
+        many frames (sparse comb, footprints twice as far apart). Detail mode (SW5 up at BTNC): the same frame rate; 1 core
+        draws 80 columns (blocky), 2 cores 160 (sharp). For the full upgrade, play one game with 1 core and I-cache off
+        (SW2, SW7 down + BTNC) and one with 2 cores and I-cache on: both appear under "Settings compared".</div>
+      <div class="note"><b>Light Hunt.</b> BTNC starts a game and the clock. BTNU / BTND walk, BTNL / BTNR turn. Pick up the five orbs
+        (any order; the beacon glows on the next one), then reach the exit. The board shows the orbs on LED15..11 and
+        "orbs &nbsp; seconds" on the 7-segment display, then "d0nE" and your time. SW2 = 1 or 2 cores (live).
+        Walking follows real time, so 1 and 2 cores move at the same speed: flip SW2 and only the smoothness (frames per second) changes.</div>
+    </div>
+  </div>
+</section>
+
 <section id="tab-guide" class="hidden">
   <div class="card">
     <h2>Every demo case: set the switches, then press BTNC</h2>
@@ -175,7 +224,7 @@ select,input[type=range]{background:var(--panel2);color:var(--ink);border:1px so
 "use strict";
 const $ = id => document.getElementById(id);
 const CLK = 50e6, LAT = [5, 6, 8, 10], PROGS = ["gol", "mandel_halves", "mandel_interleaved", "matmul"];
-const PNAME = {gol: "Game of Life", mandel_halves: "Mandelbrot, halves", mandel_interleaved: "Mandelbrot, interleaved", matmul: "MatMul 32×32"};
+const PNAME = {gol: "Game of Life", mandel_halves: "Mandelbrot, halves", mandel_interleaved: "Mandelbrot, interleaved", matmul: "MatMul 32×32", maze: "Maze (raycaster)"};
 const SWN = ["FWD","DC","DUAL","LAT0","LAT1","PRG0","PRG1","IC","RSVD","RSVD","RSVD","RSVD","RSVD","RSVD","DSP0","DSP1"];
 let summary = {runs: [], version: -1}, cache = {}, selected = new Set(), swcfg = 0x0097;
 
@@ -359,12 +408,12 @@ requestAnimationFrame(frame);
 // ---------- simulate ----------
 function renderSwitches() {
   $("sw").innerHTML = SWN.map((n, i) => `<div><button data-b="${15 - i}" class="${swcfg >> (15 - i) & 1 ? "on" : ""}"></button>SW${15 - i}<br>${SWN[15 - i]}</div>`).join("");
-  chips(swcfg, PROGS[swcfg >> 5 & 3], $("sw-chips"));
+  chips(swcfg, swcfg & 0x8000 ? "maze" : PROGS[swcfg >> 5 & 3], $("sw-chips"));
 }
 $("sw").addEventListener("click", e => { const b = e.target.dataset.b; if (b == null) return; swcfg ^= 1 << b; renderSwitches(); });
 async function sim(configs) { await fetch("/api/sim", {method: "POST", body: JSON.stringify({configs})}); }
 $("sim-one").addEventListener("click", () => sim([swcfg]));
-$("sim-cores").addEventListener("click", () => sim([0, 1, 2, 3].flatMap(p => [(swcfg & ~0x64) | p << 5, (swcfg & ~0x64) | p << 5 | 4])));
+$("sim-cores").addEventListener("click", () => sim([0, 1, 2, 3].flatMap(p => [(swcfg & ~0x8064) | p << 5, (swcfg & ~0x8064) | p << 5 | 4])));
 $("sim-ablate").addEventListener("click", () => {
   const base = (swcfg & 0x60) | 0x0097, v = [base];
   v.push(base & ~1, base & ~2, base & ~4, base & ~0x80, base & ~0x18, base | 0x18, base & 0x60);
@@ -434,6 +483,215 @@ function liveFrame(now) {
 }
 requestAnimationFrame(liveFrame);
 
+// ---------- maze ----------
+let mz = {version: -1, seq: -1, map: null, mapKey: null};
+function mzDraw(st) {
+  const f = st.frame;
+  if (!f) return;
+  const cv = $("mz-view"), g = cv.getContext("2d");
+  const W = cv.width, H = cv.height;
+  const sky = g.createLinearGradient(0, 0, 0, H / 2); sky.addColorStop(0, "#0b1430"); sky.addColorStop(1, "#1b2a52");
+  g.fillStyle = sky; g.fillRect(0, 0, W, H / 2);
+  const fl = g.createLinearGradient(0, H / 2, 0, H); fl.addColorStop(0, "#2a2a2a"); fl.addColorStop(1, "#5a5a5a");
+  g.fillStyle = fl; g.fillRect(0, H / 2, W, H / 2);
+  const b = b64(f.cols), n = b.length / 2, sw = W / n;
+  const STONE = [30, 36, 54], WARM = [255, 186, 112];               // unlit stone, the light's colour
+  for (let c = 0; c < n; c++) {
+    const h = b[2 * c], attr = b[2 * c + 1], core = attr >> 1 & 1, side = attr & 1;
+    const L = Math.pow((attr >> 2) / 63, 0.55);                      // display gamma: dim light still shows
+    const s = side ? 0.78 : 1, amb = Math.min(1, 0.45 + h / 200);  // N/S walls a bit darker; far walls dimmer
+    const col = [0, 1, 2].map(i => Math.min(255, (STONE[i] * amb * (1 - 0.5 * L) + WARM[i] * L) * s) | 0);
+    g.fillStyle = `rgb(${col[0]},${col[1]},${col[2]})`;
+    const hh = Math.min(H, h);
+    g.fillRect(c * sw, (H - hh) / 2, Math.ceil(sw), hh);
+    if (L > 0.05) {                                                  // the light's glow on the floor below a lit wall
+      g.fillStyle = `rgba(${WARM[0]},${WARM[1]},${WARM[2]},${(0.22 * L).toFixed(3)})`;
+      g.fillRect(c * sw, (H + hh) / 2, Math.ceil(sw), Math.min(H / 2, hh * 0.35));
+    }
+    const base = core ? C1 : C0;                                     // which core drew the column
+    g.fillStyle = `rgb(${base[0]},${base[1]},${base[2]})`;
+    g.fillRect(c * sw, H - 3, Math.ceil(sw), 3);
+  }
+  const mp = st.map, gm = mzGame(mp);
+  if (gm) mzSprites(g, W, H, f, b, gm);
+  if (mp) {
+    const m = $("mz-map"), q = m.getContext("2d"), cells = b64(mp.cells), s = m.width / mp.w;
+    for (let y = 0; y < mp.h; y++) for (let x = 0; x < mp.w; x++) {
+      q.fillStyle = cells[y * mp.w + x] === 1 ? "#1f3a66" : "#0a1428"; q.fillRect(x * s, y * s, s, s);
+    }
+    const pulse = 0.5 + 0.5 * Math.sin(performance.now() / 180);
+    for (const o of gm.orbs) {
+      q.fillStyle = "#ffd36b"; q.beginPath(); q.arc((o.x + 0.5) * s, (o.y + 0.5) * s, s * 0.32, 0, 2 * Math.PI); q.fill();
+      if (o === gm.target) { q.strokeStyle = `rgba(255,211,107,${0.4 + 0.6 * pulse})`; q.lineWidth = 2; q.beginPath(); q.arc((o.x + 0.5) * s, (o.y + 0.5) * s, s * (0.6 + 0.3 * pulse), 0, 2 * Math.PI); q.stroke(); }
+    }
+    if (gm.exit) {
+      q.fillStyle = gm.open ? `rgba(94,224,138,${0.6 + 0.4 * pulse})` : "#7a2b33";
+      q.fillRect(gm.exit.x * s + 1, gm.exit.y * s + 1, s - 2, s - 2);
+    }
+    const ang = f.angle / 65536 * 2 * Math.PI, px = f.x * s, py = f.y * s;
+    q.strokeStyle = "#ffffff"; q.lineWidth = 2; q.beginPath(); q.moveTo(px, py);
+    q.lineTo(px + Math.cos(ang) * 14, py + Math.sin(ang) * 14); q.stroke();
+    q.fillStyle = "#ffad5e"; q.beginPath(); q.arc(px, py, 4, 0, 2 * Math.PI); q.fill();
+    for (const [t, x, y] of st.trail || []) {                         // footprints: one dot per frame sent
+      q.fillStyle = `rgba(255,255,255,${(0.25 + 0.75 * (1 + t / 3)).toFixed(2)})`;
+      q.beginPath(); q.arc(x * s, y * s, 1.6, 0, 2 * Math.PI); q.fill();
+    }
+  }
+}
+// the game state from the MAZEMAP cells: orb i = 0x10 + i, exit 0x20 (closed) / 0x21 (open)
+function mzGame(mp) {
+  if (!mp) return null;
+  const cells = b64(mp.cells), orbs = [];
+  let exit = null, open = false;
+  for (let i = 0; i < cells.length; i++) {
+    const v = cells[i], x = i % mp.w, y = (i / mp.w) | 0;
+    if (v >= 0x10 && v < 0x20) orbs.push({i: v - 0x10, x, y});
+    if (v === 0x20 || v === 0x21) { exit = {x, y}; open = v === 0x21; }
+  }
+  orbs.sort((a, b) => a.i - b.i);
+  return {orbs, exit, open, target: orbs[0] || null, total: 5};
+}
+// orbs and the exit in the 3D view: projected like the walls, hidden behind nearer wall columns
+function mzSprites(g, W, H, f, b, gm) {
+  const n = b.length / 2, sw = W / n, ang = f.angle / 65536 * 2 * Math.PI, ca = Math.cos(ang), sa = Math.sin(ang);
+  const T = Math.tan(Math.PI / 6), t = performance.now();
+  const list = gm.orbs.map(o => ({kind: "orb", o}));
+  if (gm.exit) list.push({kind: "exit", o: gm.exit});
+  for (const s of list) {
+    const dx = s.o.x + 0.5 - f.x, dy = s.o.y + 0.5 - f.y;
+    s.depth = dx * ca + dy * sa; s.lat = -dx * sa + dy * ca;
+  }
+  list.sort((p, q) => q.depth - p.depth);
+  for (const s of list) {
+    if (s.depth < 0.15) continue;
+    const cx = ((s.lat / (s.depth * T)) + 1) / 2 * W, scale = 240 / s.depth;
+    const r = s.kind === "orb" ? scale * 0.16 : scale * 0.32, glow = s.kind === "orb" ? r * 3.2 : r * 1.6;
+    const c0 = Math.max(0, Math.floor((cx - glow) / sw)), c1 = Math.min(n - 1, Math.ceil((cx + glow) / sw));
+    if (c1 < c0) continue;
+    g.save(); g.beginPath();
+    let any = false;
+    for (let c = c0; c <= c1; c++) if (s.depth < 240 / Math.max(1, b[2 * c])) { g.rect(c * sw, 0, Math.ceil(sw), H); any = true; }
+    if (!any) { g.restore(); continue; }
+    g.clip();
+    if (s.kind === "orb") {
+      const cy = H / 2 + scale * 0.08, pulse = 1 + 0.12 * Math.sin(t / 160 + s.o.i), hot = s.o === gm.target;
+      const gr = g.createRadialGradient(cx, cy, 0, cx, cy, glow * pulse);
+      gr.addColorStop(0, "rgba(255,250,220,1)"); gr.addColorStop(0.18, hot ? "rgba(255,214,110,0.95)" : "rgba(255,214,110,0.7)");
+      gr.addColorStop(0.45, "rgba(255,150,60,0.28)"); gr.addColorStop(1, "rgba(255,120,40,0)");
+      g.fillStyle = gr; g.fillRect(cx - glow * 1.3, cy - glow * 1.3, glow * 2.6, glow * 2.6);
+    } else {
+      const top = H / 2 - scale / 2, h = scale, w = r * 2, p = 0.5 + 0.5 * Math.sin(t / 220);
+      const gr = g.createLinearGradient(0, top, 0, top + h);
+      if (gm.open) { gr.addColorStop(0, `rgba(94,224,138,${0.25 + 0.3 * p})`); gr.addColorStop(1, "rgba(94,224,138,0.9)"); }
+      else { gr.addColorStop(0, "rgba(160,40,52,0.35)"); gr.addColorStop(1, "rgba(160,40,52,0.85)"); }
+      g.fillStyle = gr; g.fillRect(cx - w / 2, top, w, h);
+      g.strokeStyle = gm.open ? "#5ee08a" : "#ff6b6b"; g.lineWidth = Math.max(1, scale / 60); g.strokeRect(cx - w / 2, top, w, h);
+    }
+    g.restore();
+  }
+}
+function mzHud(st) {
+  const gm = mzGame(st.map), live = st.config != null && !(st.config & 0x4000), res = st.result;
+  if (!gm) return;
+  $("mz-orbs").textContent = `${gm.total - gm.orbs.length} / ${gm.total}`;
+  const secs = res && res.won ? res.seconds : st.elapsed;
+  $("mz-time").textContent = secs != null ? secs.toFixed(1) + " s" : "-";
+  const goal = $("mz-goal");
+  if (res && res.won) goal.innerHTML = `<span class="ok">ESCAPED in ${res.seconds.toFixed(1)} s</span> <span class="muted">&middot; BTNC = play again</span>`;
+  else if (!live && st.config & 0x40) goal.innerHTML = '<span class="muted">race (SW14 + SW6): the autopilot races to the second orb</span>';
+  else if (!live) goal.innerHTML = '<span class="muted">scripted test path (SW14): the autopilot walks</span>';
+  else if (gm.orbs.length) goal.innerHTML = `follow the glow to orb ${gm.total - gm.orbs.length + 1}`;
+  else goal.innerHTML = '<span class="ok">exit open: find the green door</span>';
+}
+function mzComb(hist) {
+  const cv = $("mz-comb"), g = cv.getContext("2d"), W = cv.width, H = cv.height;
+  g.clearRect(0, 0, W, H);
+  const pts = (hist || []).filter(p => p[0] >= -2);
+  for (const p of pts) {
+    const x = 6 + (p[0] + 2) / 2 * (W - 12), col = p[2] === 2 ? C1 : C0;
+    g.fillStyle = `rgb(${col[0]},${col[1]},${col[2]})`; g.fillRect(x - 1.5, 6, 3, H - 12);
+  }
+  $("mz-combn").textContent = `: ${pts.length}`;
+}
+const CFGNAME = c => `${c.cores === 2 ? "2 cores" : "1 core"} \u00b7 I-cache ${c.config & 0x80 ? "on" : "off"}` +
+  (c.ncols && c.ncols !== 160 ? ` \u00b7 ${c.ncols} columns` : "");
+function mzCompare(ses) {
+  if (!ses || !ses.length) { $("mz-cmp").innerHTML = '<span class="muted">-</span>'; return; }
+  const top = Math.max(...ses.map(x => x.fps));
+  $("mz-cmp").innerHTML = ses.slice().reverse().map(x => {
+    const col = x.cores === 2 ? "var(--c1)" : "var(--c0)";
+    return `<div style="margin:5px 0"><div>${CFGNAME(x)}</div><div style="display:flex;align-items:center;gap:8px">` +
+      `<div style="height:14px;border-radius:3px;background:${col};width:${Math.max(2, x.fps / top * 70).toFixed(1)}%"></div>` +
+      `<b style="color:${col}">${x.fps.toFixed(1)} fps</b></div></div>`;
+  }).join("");
+}
+function mzGraph(hist) {
+  const cv = $("mz-fps"), g = cv.getContext("2d"), W = cv.width, H = cv.height;
+  g.clearRect(0, 0, W, H);
+  if (!hist || !hist.length) return;
+  const top = Math.max(40, Math.ceil(Math.max(...hist.map(p => p[1])) * 1.15 / 10) * 10);
+  g.strokeStyle = "rgba(255,255,255,0.08)"; g.fillStyle = "rgba(255,255,255,0.45)"; g.font = "11px monospace";
+  for (let v = 0; v <= top; v += 10) {                               // grid every 10 fps
+    const y = H - 4 - v / top * (H - 12);
+    g.beginPath(); g.moveTo(30, y); g.lineTo(W, y); g.stroke(); g.fillText(String(v), 4, y + 4);
+  }
+  const X = t => 30 + (t + 30) / 30 * (W - 32), Y = v => H - 4 - v / top * (H - 12);
+  g.lineWidth = 2.5;
+  for (let i = 1; i < hist.length; i++) {
+    const a = hist[i - 1], p = hist[i], col = p[2] === 2 ? C1 : C0;
+    g.strokeStyle = `rgb(${col[0]},${col[1]},${col[2]})`;
+    g.beginPath(); g.moveTo(X(a[0]), Y(a[1])); g.lineTo(X(p[0]), Y(p[1])); g.stroke();
+  }
+}
+async function mzPoll() {
+  try {
+    const st = await (await fetch("/api/maze")).json();
+    if (st.version !== mz.version) {
+      mz.version = st.version;
+      const meas = st.source === "board";
+      if (st.board_fps && st.frame) {
+        const two = st.frame.cores === 2, col = two ? "var(--c1)" : "var(--c0)";
+        $("mz-fpsbig").textContent = st.board_fps.toFixed(1) + " fps";
+        $("mz-fpsbig").style.color = col;
+        $("mz-cores").textContent = two ? "2 cores drawing (SW2 up)" : "1 core drawing";
+        $("mz-cores").style.color = col;
+      }
+      mzGraph(st.hist);
+      mzComb(st.hist);
+      mzCompare(st.sessions);
+      if (st.frame) {
+        const nc = b64(st.frame.cols).length / 2, full = nc === 160;
+        $("mz-detail").textContent = full ? "160 columns \u00b7 full detail" : `${nc} columns \u00b7 half detail (detail mode, SW5)`;
+        $("mz-detail").style.color = full ? "var(--c1)" : "var(--c0)";
+      }
+      mzHud(st);
+      $("mz-title").textContent = st.frame ? `Maze mode \u00b7 frame ${st.frame.seq} \u00b7 ${st.source}` : "Maze mode: waiting for frames (SW15 up at reset)";
+      if (st.board_cycles) {
+        $("mz-cyc").textContent = Math.round(st.board_cycles).toLocaleString("en-US") + " cycles/frame";
+        $("mz-sub").innerHTML = `${(st.board_fps).toFixed(0)} frames/s computed ${meas ? "(measured: the board's cycle counter)" : "(<b>simulation estimate</b>, not the board)"}` +
+          (st.computed_per_shown ? ` &middot; ${st.computed_per_shown.toFixed(1)} computed per frame sent` : "") +
+          (st.host_fps ? `<br>on screen ${st.host_fps.toFixed(0)} fps (includes UART and browser: <b>not a measurement</b>)` : "");
+      }
+      if (st.config != null) chips(st.config, "maze", $("mz-chips"), true);
+      if (st.result && st.result.won) $("mz-note").innerHTML = `Game won in ${st.result.seconds.toFixed(1)} s (the board's timer, from BTNC).`;
+      else if (st.result) $("mz-note").innerHTML = `Scripted run checksum ${st.result.checksum.toString(16)}: ` +
+        (st.result.ok ? '<span class="ok">\u2713 equals the reference raycaster</span>' : '<span class="bad">\u2717 differs from the reference</span>');
+      else if (st.config != null) $("mz-note").textContent = st.config & 0x4000 ?
+        "Scripted run: the checksum follows the last frame." :
+        "Live game: it ends at the exit with every orb (the scripted path, SW14 up at reset, ends with a checksum).";
+      mzDraw(st);
+    }
+  } catch (e) { }
+  setTimeout(mzPoll, document.querySelector("#tab-maze.hidden") ? 500 : 10);   // 10 ms: every frame the board sends is shown
+}
+async function mzRecordings() {
+  const r = await (await fetch("/api/maze/recordings")).json();
+  $("mz-rec").innerHTML = r.map(n => `<option>${n}</option>`).join("") || "<option value=''>no recordings</option>";
+}
+$("mz-play").addEventListener("click", () => {
+  const f = $("mz-rec").value; if (f) fetch("/api/maze/replay", {method: "POST", body: JSON.stringify({file: f})});
+});
+
 // ---------- tabs + polling ----------
 document.querySelectorAll("nav button").forEach(b => b.addEventListener("click", () => {
   document.querySelectorAll("nav button").forEach(x => x.classList.toggle("on", x === b));
@@ -458,7 +716,7 @@ async function poll() {
   } catch (e) { $("status").textContent = "dashboard server not reachable"; }
   setTimeout(poll, 400);
 }
-setSlow(); renderSwitches(); renderGuide(); poll();
+setSlow(); renderSwitches(); renderGuide(); poll(); mzPoll(); mzRecordings();
 </script>
 </body>
 </html>

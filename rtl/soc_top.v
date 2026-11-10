@@ -124,7 +124,7 @@ module soc_top #(
     wire [31:0] rd_data, st_data;
     wire [479:0] snap;
     wire [15:0] leds;
-    wire        st_gen, st_chk, st_row, st_mrow, st_owner;
+    wire        st_gen, st_chk, st_row, st_mrow, st_owner, st_mzf, st_mzm;
     mmio_bus #(.DEB_BITS(DEB_BITS)) u_mmio (.clk(clk), .rst(rst),
         .sel(io_sel), .we(io_we), .off(io_off), .wdata(io_wdata), .owner(io_owner), .rdata(io_rdata), .ready(io_ready),
         .cfg(cfg), .ncores(ncores), .sw_live(sw_live), .btn(btn),
@@ -132,6 +132,7 @@ module soc_top #(
         .run_start(run_start), .run_stop(run_stop), .rd_sel(rd_sel), .rd_data(rd_data),
         .leds(leds), .seg7_val(seg7_val), .seg7_dp(seg7_dp), .seg7_txt(seg7_txt),
         .st_gen_done(st_gen), .st_checksum(st_chk), .st_row_done(st_row), .st_mrow_done(st_mrow),
+        .st_maze_frame(st_mzf), .st_maze_map(st_mzm),
         .st_data(st_data), .st_owner(st_owner));
     lock_barrier u_lb (.clk(clk), .rst(rst), .ncores(ncores), .lock_rd(lock_rd), .lock_wr0(lock_wr0),
         .owner(io_owner), .lock_rdata(lock_rdata), .bar_req(bar_req), .bar_release(bar_release),
@@ -150,6 +151,7 @@ module soc_top #(
         .ev_run_start(run_start), .ev_gen_done(st_gen), .gen_word(st_data),
         .ev_row_done(st_row), .ev_mrow_done(st_mrow), .ev_owner(st_owner), .ev_row(st_data),
         .ev_checksum(st_chk), .checksum(st_data), .snap(snap),
+        .ev_maze_frame(st_mzf), .ev_maze_map(st_mzm), .maze_cycles(st_data),
         .wr(u_wr), .wr_data(u_data), .full(u_full), .tx_busy(u_busy), .uart_busy(uart_busy));
     uart_top u_uart (.clk(clk), .rst(rst), .wr(u_wr), .wr_data(u_data), .full(u_full), .busy(u_busy), .tx(uart_tx));
     seg7_bcd u_seg (.clk(clk), .rst(rst), .value(seg7_val), .dp(seg7_dp), .txt(seg7_txt), .an(an), .seg(seg), .dp_n(dp_n));

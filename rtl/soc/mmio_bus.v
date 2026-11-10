@@ -65,6 +65,8 @@ module mmio_bus #(
     output wire        st_checksum,
     output wire        st_row_done,
     output wire        st_mrow_done,
+    output wire        st_maze_frame,      // MAZEFRAME (0x90): maze mode, data = the frame's cycles
+    output wire        st_maze_map,        // MAZEMAP (0x94)
     output wire [31:0] st_data,
     output wire        st_owner
 );
@@ -76,14 +78,16 @@ module mmio_bus #(
     assign ready = sel;
 
     // Sub-module routing and triggers
-    assign lock_rd      = is_read  && (off == 8'h10);
-    assign lock_wr0     = is_write && (off == 8'h10) && (wdata == 32'd0);
-    assign run_start    = is_write && (off == 8'h14);
-    assign run_stop     = is_write && (off == 8'h18);
-    assign st_gen_done  = is_write && (off == 8'h1C);
-    assign st_checksum  = is_write && (off == 8'h20);
-    assign st_row_done  = is_write && (off == 8'h2C);
-    assign st_mrow_done = is_write && (off == 8'h30);
+    assign lock_rd       = is_read  && (off == 8'h10);
+    assign lock_wr0      = is_write && (off == 8'h10) && (wdata == 32'd0);
+    assign run_start     = is_write && (off == 8'h14);
+    assign run_stop      = is_write && (off == 8'h18);
+    assign st_gen_done   = is_write && (off == 8'h1C);
+    assign st_checksum   = is_write && (off == 8'h20);
+    assign st_row_done   = is_write && (off == 8'h2C);
+    assign st_mrow_done  = is_write && (off == 8'h30);
+    assign st_maze_frame = is_write && (off == 8'h90);
+    assign st_maze_map   = is_write && (off == 8'h94);
     assign st_data      = wdata;
     assign st_owner     = owner;
 
@@ -122,10 +126,28 @@ module mmio_bus #(
     end
 
     //-------------------------------------------------------------------------
+    // MAZE_SAVE_X / Y / A (0xA0 / 0xA4 / 0xA8, R/W): a pose kept across BTNC.
+    // No reset (only the configuration's initial 0): a soft reset clears the
+    // D-cache, so with write-back a pose kept in data memory would be lost.
+    //-------------------------------------------------------------------------
+    reg [31:0] save_x = 32'd0, save_y = 32'd0, save_a = 32'd0;
+
+    always @(posedge clk) begin
+        if (is_write) begin
+            case (off)
+                8'hA0:   save_x <= wdata;
+                8'hA4:   save_y <= wdata;
+                8'hA8:   save_a <= wdata;
+                default: ;
+            endcase
+        end
+    end
+
+    //-------------------------------------------------------------------------
     // Timer (Free-running)
     //-------------------------------------------------------------------------
     reg [31:0] timer_q = 32'd0;
-    
+
     always @(posedge clk) begin
         timer_q <= rst ? 32'd0 : timer_q + 32'd1;
     end
@@ -162,6 +184,9 @@ module mmio_bus #(
                 8'h38:   rdata = {16'd0, sw_live};       // SWITCHES
                 8'h3C:   rdata = {28'd0, btn_live_q};    // BUTTONS
                 8'h44:   rdata = timer_q;                // TIMER
+                8'hA0:   rdata = save_x;                 // MAZE_SAVE_X / Y / A
+                8'hA4:   rdata = save_y;
+                8'hA8:   rdata = save_a;
                 default: rdata = is_counter ? rd_data : 32'd0;
             endcase
         end

@@ -8,8 +8,11 @@ import struct
 
 SYNC = 0xA5
 BEGIN, FRAME, ROW, MROW, STATS = 1, 2, 3, 4, 5
-NAMES = {BEGIN: "BEGIN", FRAME: "FRAME", ROW: "ROW", MROW: "MROW", STATS: "STATS"}
-LENGTHS = {BEGIN: 4, FRAME: 518, ROW: 199, MROW: 38, STATS: 68}
+MAZEFRAME = 6                                            # maze mode (PROTOCOL.md section 11)
+MAZEMAP = 7
+NAMES = {BEGIN: "BEGIN", FRAME: "FRAME", ROW: "ROW", MROW: "MROW", STATS: "STATS",
+         MAZEFRAME: "MAZEFRAME", MAZEMAP: "MAZEMAP"}
+LENGTHS = {BEGIN: 4, FRAME: 518, ROW: 199, MROW: 38, STATS: 68, MAZEFRAME: 332, MAZEMAP: 578}
 PROGRAMS = ["gol", "mandel_halves", "mandel_interleaved", "matmul"]
 COUNTERS = ["instret", "dhit", "dmiss", "ihit", "imiss", "arbwait", "barwait"]
 
@@ -48,6 +51,14 @@ def decode(ptype, p):
         cores = [dict(zip(COUNTERS, vals[7 * k:7 * k + 7])) for k in range(2)]
         return {"type": "STATS", "config": cfg, "ncores": n, "program": PROGRAMS[prog & 3],
                 "cycles": cyc, "checksum": cs, "cores": cores}
+    if ptype == MAZEFRAME:
+        seq, ncols, cyc, x, y, a = struct.unpack_from("<BBIHHH", p)
+        cols = [(p[12 + 2 * c], p[13 + 2 * c]) for c in range(ncols)]
+        return {"type": "MAZEFRAME", "seq": seq, "ncols": ncols, "cycles": cyc,
+                "x": x / 256.0, "y": y / 256.0, "angle": a, "cols": cols}
+    if ptype == MAZEMAP:
+        w, h = p[0], p[1]
+        return {"type": "MAZEMAP", "w": w, "h": h, "cells": bytes(p[2:2 + w * h])}
     raise ValueError("unknown packet type %d" % ptype)
 
 

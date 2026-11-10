@@ -25,7 +25,7 @@ OUT = os.path.join(HERE, "build")
 
 COMMON = ["boot.S", "util.c", "display.c"]
 IMAGES = {
-    "demo": ["main.c", "gol.c", "mandel.c", "matmul.c"],
+    "demo": ["main.c", "gol.c", "mandel.c", "matmul.c", "maze.c"],   # maze mode behind SW15
     "t_lock": ["tests/t_lock.c"],
     "t_barrier": ["tests/t_barrier.c"],
     "t_mext": ["tests/t_mext.c"],

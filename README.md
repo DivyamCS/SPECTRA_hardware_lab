@@ -10,7 +10,8 @@ four more hardware features can be toggled the same way: **operand forwarding**,
 caches**, a **shared 4-way data cache** and **memory latency**. Per-core **hardware performance
 counters** measure execution time, waiting cycles and cache hits and misses. The same bitstream and
 program binary run in every configuration, so a change in cycle count comes only from the feature that
-was switched.
+was switched. Four demos run on it: Game of Life, Mandelbrot and MatMul, timed run by run, and a live
+3D maze game whose frame rate shows the same switches while you play.
 
 <br/>
 
@@ -30,6 +31,10 @@ was switched.
 <img src="docs/img/compare_gol.gif" width="100%" alt="The dashboard Compare tab playing Game of Life from board measurements: D-cache off, D-cache on, two cores, side by side on one clock" />
 
 <sub>Game of Life (64×64, 400 generations) replayed from three board runs on one clock: D-cache off · D-cache on · two cores — 3.86 s · 1.41 s · 0.77 s, same final grid and checksum. Core 1's rows in orange.</sub>
+
+<img src="docs/img/maze_race.gif" width="100%" alt="Maze mode on the board: the same race on 1 core with the D-cache off and on 2 cores with both caches on" />
+
+<sub>Maze mode, a 3D maze drawn by the cores, racing the same 273 frames on the board: 1 core, D-cache off · 2 cores, both caches on — 46.6 s · 16.8 s, every frame identical.</sub>
 
 </div>
 
@@ -62,6 +67,8 @@ seconds, with no re-synthesis.
   barrier wait
 - Results streamed over UART (1 Mbaud) to a laptop dashboard; the 7-segment display shows the cycles,
   cache hit rates, CPI and arbiter wait in a loop
+- Maze mode (SW15): a 3D maze game drawn by both cores, where the frame rate shows the second core and
+  the caches live
 
 ---
 
@@ -117,9 +124,12 @@ forwarding and both caches on, L = 8). Source: [`docs/results/numbers.md`](docs/
 | Mandelbrot, halves (192×144) | 12,224,498 | 6,209,751 | 244 → 124 ms | **1.97×** |
 | Mandelbrot, interleaved rows | 12,224,409 | 6,131,187 | 244 → 123 ms | **1.99×** |
 | MatMul (32×32) | 535,596 | 297,020 | 10.7 → 5.9 ms | **1.80×** |
+| Maze game, one frame (median, live) | 5,375,877 | 2,913,265 | 9.3 → 17.2 frames/s | **1.85×** |
 
 Mandelbrot is compute-bound and scales almost perfectly. Game of Life and MatMul share the data cache,
 so the two cores sometimes wait for each other at the arbiter (9 % and 14 % of the cycles).
+The maze row is per frame while playing, with the release bitstream `fpga-v3`; the two cores draw
+alternate columns.
 The dashboard screenshots below are from earlier board runs, so a few two-core counts in them
 differ slightly (under 0.1 %) from this table.
 
@@ -143,8 +153,8 @@ How much slower the two-core run becomes when one feature is switched off:
 
 ### Resource utilization
 
-Post-route utilization of the release bitstream `fpga-v2` on the `xc7a100tcsg324-1`, as reported by
-Vivado. To see the same, open [`build/releases/fpga-v2/post_route.dcp`](build/releases/fpga-v2/) in
+Post-route utilization of the release bitstream `fpga-v3` on the `xc7a100tcsg324-1`, as reported by
+Vivado. To see the same, open [`build/releases/fpga-v3/post_route.dcp`](build/releases/fpga-v3/) in
 Vivado and run `report_utilization`:
 
 <p align="center">
@@ -153,8 +163,8 @@ Vivado and run `report_utilization`:
 
 `top_fpga` is the whole design; `u_soc` is the two cores, caches and peripherals; `dbg_hub` and
 `u_vio_hook` are the JTAG hook that lets scripts drive the switches and buttons.
-Timing met at 50 MHz: WNS +0.262 ns, WHS +0.041 ns
-([`timing_summary.rpt`](build/releases/fpga-v2/reports/timing_summary.rpt)). What each feature costs:
+Timing met at 50 MHz: WNS +0.202 ns, WHS +0.036 ns
+([`summary.txt`](build/releases/fpga-v3/summary.txt)). What each feature costs:
 [`docs/results/area.md`](docs/results/area.md); each module alone: [`docs/results/synth_modules.md`](docs/results/synth_modules.md).
 
 ---
@@ -174,7 +184,7 @@ Set the switches, then press **BTNC**: the setting is saved and the program runs
 | SW6:5 | Program: 00 Game of Life · 01 Mandelbrot (halves) · 10 Mandelbrot (interleaved) · 11 MatMul |
 | SW7 | I-caches on / off |
 | SW13:8 | Not used |
-| SW15:14 | Which counter the display shows after a run |
+| SW15:14 | Which counter the display shows after a run; SW15 up at BTNC = maze mode |
 
 | Example | Switches |
 | --- | --- |
@@ -183,6 +193,11 @@ Set the switches, then press **BTNC**: the setting is saved and the program runs
 | Mandelbrot interleaved, 2 cores | `0x00D7` |
 | MatMul, 2 cores | `0x00F7` |
 | Everything off (1 core, no forwarding, no caches) | `0x0010` |
+| Maze game, 2 cores (SW2 down = 1 core, live) | `0x8097` |
+| Maze race: 1 core, D-cache off · 2 cores | `0xC0D1` · `0xC0D7` |
+
+In maze mode SW2 is read live (1 or 2 cores drawing), SW5 = detail mode (one core draws 80 columns at
+the same frame rate) and SW14 + SW6 = race (a fixed path, the same step every frame).
 
 ### Buttons, display and LEDs
 
@@ -197,7 +212,8 @@ After a run the display shows each result for 3 s with a label, in a loop. MatMu
 (`0x00F7`) on the board: `Cy   297` (cycles in thousands) → `IH0. 99.99` (core 0 I-cache hit %) →
 `dH0. 99.25` (D-cache hit %) → `CPI0. 2.20` → the same for core 1 → `Ar0. 14.20` and `Ar1.  7.05`
 (arbiter wait %). Rates are cut, not rounded, to two decimals. **LED0** = run done, **LED1** = checksum
-correct.
+correct. In maze mode BTNU / BTND walk and BTNL / BTNR turn; the display shows the orbs picked up and
+the seconds (`d0nE` and the time at the exit), and LED15:11 the orbs.
 
 ---
 
@@ -216,14 +232,14 @@ correct.
 │   └── top_fpga.v       the Nexys A7 top level
 ├── tb/                  one testbench per RTL module, plus the core and whole-SoC tests
 ├── sim/                 Vivado file lists, the test list, and rv32sim (instruction simulator)
-├── fw/                  firmware in C: Game of Life, Mandelbrot, MatMul, test programs
+├── fw/                  firmware in C: Game of Life, Mandelbrot, MatMul, maze mode, test programs
 ├── host/                laptop dashboard
 ├── scripts/             build, program and test scripts
 ├── tests/               run_all.py: the software checks (simulator, firmware, dashboard)
 ├── tools/               Python reference models used by the testbenches
 ├── modules/, sw/, constraints/   a separate first implementation of the SoC pieces, not used by the build
 ├── docs/                PROTOCOL.md (memory map and registers), spec/ (one page per module), results/
-└── build/releases/      release fpga-v2: bitstream, routed design, reports, board results
+└── build/releases/      fpga-v3: all four demos (bitstream, routed design); fpga-v2: three timed demos (bitstream, routed design, reports, board results, flash image)
 ```
 
 ---
@@ -271,20 +287,22 @@ Each module also has a one-page specification in [`docs/spec/`](docs/spec/).
 | --- | --- |
 | **Firmware** (`fw/`, C for the cores) | |
 | `boot.S`, `link.ld` | Start-up code for both cores (one stack each) and the memory map |
-| `main.c` | Reads the switch setting and runs the selected program on every running core |
+| `main.c` | Reads the switch setting and runs the selected program on every running core (SW15: maze mode) |
 | `gol.c` · `mandel.c` · `matmul.c` | Game of Life · Mandelbrot · matrix multiply, rows split between the two cores |
+| `maze.c` · `maze_data.h` | Maze mode: the 3D maze game, columns split between the two cores; tables from `tools/raycast.py` |
 | `display.c` | After the run: the 7-segment tour of counters and the counter browser |
 | `util.c`, `spectra.h` | Shared helpers, register addresses, LOCK and BARRIER calls |
 | `tests/t_*.c` | Small test programs: hazards, M extension, caches, LOCK, BARRIER |
 | `build.py` | Compiles every program with RISC-V GCC into `imem.hex` / `dmem.hex` |
 | **Laptop** (`host/`, Python) | |
 | `spectra_host.py` | Reads the board's UART, saves every run and serves the dashboard |
-| `dashboard.html` | The dashboard: Live, Compare, Runs, Simulate and Demo guide tabs |
+| `dashboard.html` | The dashboard: Live, Compare, Runs, Simulate, Demo guide and Maze tabs |
 | `protocol.py` | Decodes the UART packets (BEGIN, ROW, STATS, ...) and checks their CRC |
 | `uart_packets.py` | Captures the UART for a few seconds and lists the packets, for debugging |
 | **Reference models** (`tools/`, `sim/`) | |
 | `sim/rv32sim.c` | Instruction simulator of the whole SoC (two harts, caches, counters); gives the expected trace and UART output |
 | `golden.py` | Python versions of every program: the correct checksum for each |
+| `raycast.py` | Python version of maze mode: every column of every frame, bit for bit, and `fw/maze_data.h` |
 | `mext_ref.py` · `cache_model.py` · `arbiter_ref.py` · `seg7_model.py` | Reference models for MUL/DIV, the caches, the arbiter and the display |
 | `gen_*_vectors.py` | Write the test vectors (`tb/vectors/`) the module testbenches compare against |
 | `make_refs.py` · `tracecmp.py` | Make the reference traces from rv32sim · compare an RTL trace with it |
@@ -364,18 +382,20 @@ Vivado's commands need its environment first: `C:\AMDDesignTools\2025.2\Vivado\s
 ### On the board (pre-built bitstream)
 
 ```bash
-vivado -mode batch -nojournal -nolog -notrace -source scripts/program.tcl -tclargs build/releases/fpga-v2/top_fpga.bit
+vivado -mode batch -nojournal -nolog -notrace -source scripts/program.tcl -tclargs build/releases/fpga-v3/top_fpga.bit
 pip install pyserial
 python host/spectra_host.py --port COM8
 ```
 
 `--port` is the board's USB serial port: Windows Device Manager -> Ports ("USB Serial Port (COMx)");
 Linux `ls /dev/ttyUSB*` (usually `/dev/ttyUSB1`); macOS `ls /dev/tty.usbserial*`. Set the switches (for
-example `0x0097`), press **BTNC**, and watch the run at <http://localhost:8000>.
+example `0x0097`), press **BTNC**, and watch the run at <http://localhost:8000>. For the maze, set `0x8097`,
+press **BTNC** and open the **Maze** tab: BTNU / BTND walk, BTNL / BTNR turn, pick up the five orbs, then
+reach the exit.
 
 To start the board without a laptop: write the design into its flash once
 (`vivado -mode batch -source scripts/program_flash.tcl -tclargs build/releases/fpga-v2/flash/top_fpga.mcs --yes-program-the-flash`)
-and set jumper JP1 to QSPI. At power-on it runs once with the switches as they are; every BTNC then
+and set jumper JP1 to QSPI; this flash image runs the three timed demos. At power-on it runs once with the switches as they are; every BTNC then
 starts a new run.
 
 ### Without a board
@@ -403,7 +423,7 @@ python scripts/fpga_build.py         # synthesis, implementation -> build/<commi
 
 `fpga_build.py` checks the resources against `scripts/fpga_budget.txt` (the release build), so use
 Vivado 2025.2. A rebuild of the release RTL gives the same configuration data as
-`build/releases/fpga-v2/top_fpga.bit`; only the build time in the file header differs.
+`build/releases/fpga-v3/top_fpga.bit`; only the build time in the file header differs.
 
 ---
 
@@ -422,6 +442,9 @@ Vivado 2025.2. A rebuild of the release RTL gives the same configuration data as
 <td width="50%"><img src="docs/screenshots/demo_guide.jpg" alt="Demo guide tab" /><br/><sub><b>Demo guide</b> — every demo case with its switches</sub></td>
 <td width="50%"><img src="docs/screenshots/compare_mandel_board.jpg" alt="Compare tab, Mandelbrot" /><br/><sub><b>Compare</b> — Mandelbrot on one core, then two cores by halves and by interleaved rows</sub></td>
 </tr>
+<tr>
+<td width="50%"><img src="docs/screenshots/maze_board.jpg" alt="Maze tab" /><br/><sub><b>Maze</b> — the maze game live from the board: frame rate, one tick per frame, the map with the orbs</sub></td>
+</tr>
 </table>
 
 ---
@@ -430,7 +453,8 @@ Vivado 2025.2. A rebuild of the release RTL gives the same configuration data as
 
 - The data cache is shared, so the two cores need no coherence protocol — and the project cannot show
   its cost.
-- Switches take effect at the next reset, not in the middle of a run (by design).
+- Switches take effect at the next reset, not in the middle of a run (by design), except SW2 in maze
+  mode, which is read every frame.
 - The work split between the cores is fixed in the C code, not chosen by a scheduler.
 
 ## Acknowledgements

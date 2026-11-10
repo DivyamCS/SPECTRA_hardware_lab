@@ -19,6 +19,7 @@ from an RTL simulation (tb_top) are marked "rtl": RTL cycle counts in xsim, not 
 import base64
 import json
 import os
+import re
 import subprocess
 import sys
 import tempfile
@@ -87,6 +88,9 @@ class Store:
         self.version = 0
         self.live = {}                     # source ("board" / "sim") -> run being received
         self.status = "idle"
+        # maze mode (CONFIG bit 15 at reset): not a benchmark run; its own state, served at /api/maze
+        self.maze = {"source": None, "config": None, "map": None, "frames": [], "result": None, "version": 0}
+        self.maze_active = set()
         for f in sorted(os.listdir(folder)):
             if f.endswith(".json"):
                 try:
@@ -106,10 +110,91 @@ class Store:
         if r is not None:
             self.runs.pop(r["id"], None)
 
+    def maze_packet(self, pk, source):
+        """Maze-mode packets (lock held). Returns True if handled."""
+        t, m = pk["type"], self.maze
+        if t == "BEGIN" and pk["config"] & 0x8000:
+            self._cut_off(source)
+            self.maze_active.add(source)
+            m.update({"source": source, "config": pk["config"], "ncores": pk["ncores"], "frames": [],
+                      "result": None, "started": time.time()})
+            ses = m.setdefault("sessions", [])             # recent sessions, for the settings comparison
+            ses.append({"config": pk["config"], "cycles": [], "cores": 0, "ncols": 0})
+            del ses[:-6]
+        elif t == "MAZEMAP":
+            m["map"] = {"w": pk["w"], "h": pk["h"], "cells": base64.b64encode(pk["cells"]).decode()}
+        elif t == "MAZEFRAME":
+            now = time.time()
+            if m["source"] is None:                         # joined a session after its BEGIN
+                m["source"] = source
+            cores = 2 if any(attr & 2 for _, attr in pk["cols"]) else 1   # attr bit 1 = core 1 drew it
+            m["frames"].append({"seq": pk["seq"], "cycles": pk["cycles"], "x": pk["x"], "y": pk["y"],
+                                "angle": pk["angle"], "t": now, "source": source, "cores": cores,
+                                "cols": base64.b64encode(bytes(v for hc in pk["cols"] for v in hc)).decode()})
+            del m["frames"][:-120]
+            if m.get("sessions"):
+                cur = m["sessions"][-1]
+                if cur["cycles"] and cur["cores"] != cores:  # SW2 flipped live: a new entry
+                    cur = {"config": cur["config"], "cycles": [], "cores": cores, "ncols": 0}
+                    m["sessions"].append(cur)
+                    del m["sessions"][:-6]
+                cur["cycles"].append(pk["cycles"])
+                del cur["cycles"][:-40]
+                cur["cores"], cur["ncols"] = cores, pk["ncols"]
+            hist = m.setdefault("hist", [])                 # frame-rate history for the dashboard graph
+            hist.append((now, pk["cycles"], cores))
+            while hist and hist[0][0] < now - 30.0:
+                hist.pop(0)
+        elif t == "STATS" and source in self.maze_active:
+            self.maze_active.discard(source)
+            gold = maze_gold()
+            m["result"] = {"checksum": pk["checksum"], "gold": gold, "ok": pk["checksum"] == gold,
+                           "cycles": pk["cycles"], "cores": pk["cores"]}
+            if not (m["config"] or 0) & 0x4000:             # live: the game was won (checksum = its time in ms)
+                m["result"].update({"won": True, "seconds": pk["checksum"] / 1000.0})
+        else:
+            return False
+        m["version"] += 1
+        return True
+
+    def maze_summary(self):
+        with self.lock:
+            m = self.maze
+            fr = m["frames"]
+            last = fr[-1] if fr else None
+            recent = fr[-10:]
+            board_cyc = sum(f["cycles"] for f in recent) / len(recent) if recent else None
+            win = [f for f in fr if last and f["t"] >= last["t"] - 2.0]
+            host_fps = (len(win) - 1) / (win[-1]["t"] - win[0]["t"]) if len(win) > 2 and win[-1]["t"] > win[0]["t"] else None
+            seqs = [f["seq"] for f in fr[-60:]]
+            skipped = sum(((b - a) & 0xFF) - 1 for a, b in zip(seqs, seqs[1:]))
+            hist = m.get("hist", [])
+            t_end = hist[-1][0] if hist else 0.0
+            ses = []
+            for x in m.get("sessions", []):
+                if x["cycles"]:
+                    c = sorted(x["cycles"])[len(x["cycles"]) // 2]
+                    ses.append({"config": x["config"], "cores": x["cores"], "ncols": x["ncols"], "fps": round(CLOCK_HZ / c, 2)})
+            trail = [[round(f["t"] - last["t"], 2), f["x"], f["y"]] for f in fr if last and f["t"] >= last["t"] - 3.0]
+            return {"version": m["version"], "source": m["source"], "config": m["config"], "ncores": m.get("ncores"),
+                    "sessions": ses, "trail": trail,
+                    "map": m["map"], "frame": last, "result": m["result"],
+                    "elapsed": None if m["result"] or not m.get("started") else round(time.time() - m["started"], 1),
+                    "hist": [[round(t - t_end, 2), round(CLOCK_HZ / c, 1) if c else 0, k] for t, c, k in hist],
+                    "board_cycles": board_cyc, "board_fps": CLOCK_HZ / board_cyc if board_cyc else None,
+                    "host_fps": host_fps, "computed_per_shown": (skipped + len(seqs) - 1) / (len(seqs) - 1) if len(seqs) > 1 else None}
+
     def packet(self, pk, source):
         with self.lock:
             t = pk["type"]
+            if (t == "BEGIN" and pk["config"] & 0x8000) or t in ("MAZEMAP", "MAZEFRAME") or \
+                    (t == "STATS" and source in self.maze_active):
+                self.maze_packet(pk, source)
+                return
             if t == "BEGIN":
+                # a live maze session never sends STATS: a benchmark BEGIN ends it, so this run's STATS
+                # is not taken as the maze result
+                self.maze_active.discard(source)
                 self._cut_off(source)
                 rid = self._new_id()
                 while rid in self.runs:
@@ -162,6 +247,31 @@ class Store:
                 self.version += 1
 
 
+def maze_gold():
+    """MAZE_GOLD from fw/maze_data.h (the reference's checksum of the scripted maze run)."""
+    try:
+        txt = open(os.path.join(ROOT, "fw", "maze_data.h")).read()
+        return int(re.search(r"#define MAZE_GOLD 0x([0-9A-Fa-f]+)u", txt).group(1), 16)
+    except (OSError, AttributeError):
+        return None
+
+
+def maze_pace(pk):
+    """Hold a replayed or simulated MAZEFRAME for the time the board computed it (its cycles at
+    50 MHz, at least 1/60 s): a replay then shows the frame rate - the smoothness - of the run."""
+    if pk["type"] == "MAZEFRAME":
+        time.sleep(max(1 / 60, pk["cycles"] / CLOCK_HZ))
+
+
+def maze_replay(store, path, source):
+    """Feed a recorded maze stream to the store, each MAZEFRAME held for its own computed time (the
+    cycle counts inside are the measurement; the pacing only shows it)."""
+    p = protocol.Parser()
+    for pk in p.feed(open(path, "rb").read()):
+        store.packet(pk, source)
+        maze_pace(pk)
+
+
 # ---------------- sources ----------------
 def sim_binary():
     from simpath import find_sim
@@ -173,6 +283,10 @@ def run_sim(store, cfg, image="demo"):
     img = os.path.join(ROOT, "fw", "build", image)
     if not os.path.exists(os.path.join(img, "imem.hex")):
         raise RuntimeError("firmware not built: run python fw/build.py")
+    if cfg & 0x8000:
+        # maze mode: the simulated board has no buttons, so a live session would only run into the
+        # cycle limit; it walks the scripted path (SW14) and ends with the checksum (Maze tab)
+        cfg |= 0x4000
     fd, path = tempfile.mkstemp(suffix=".bin")
     os.close(fd)
     try:
@@ -182,6 +296,8 @@ def run_sim(store, cfg, image="demo"):
         p = protocol.Parser()
         for pk in p.feed(open(path, "rb").read()):
             store.packet(pk, "sim")
+            if cfg & 0x8000:
+                maze_pace(pk)                     # the maze plays at its computed frame rate
     finally:
         os.remove(path)
 
@@ -229,6 +345,11 @@ class Handler(BaseHTTPRequestHandler):
             self.wfile.write(b)
         elif self.path == "/api/runs":
             self._json(self.store.summary())
+        elif self.path == "/api/maze":
+            self._json(self.store.maze_summary())
+        elif self.path == "/api/maze/recordings":
+            d = os.path.join(HERE, "recordings")
+            self._json(sorted(f for f in os.listdir(d) if f.startswith("maze_") and f.endswith(".bin")) if os.path.isdir(d) else [])
         elif self.path.startswith("/api/run/"):
             r = self.store.runs.get(self.path[9:])
             self._json(r if r else {"error": "no such run"}, 200 if r else 404)
@@ -242,6 +363,16 @@ class Handler(BaseHTTPRequestHandler):
             cfgs = [int(c) for c in body.get("configs", [])][:64]
             self.jobs.extend(cfgs)
             self._json({"queued": len(cfgs)})
+        elif self.path == "/api/maze/replay":
+            # recordings in host/recordings/ only; maze_sim_* = rv32sim, maze_board_* = the board
+            name = os.path.basename(body.get("file", ""))
+            path = os.path.join(HERE, "recordings", name)
+            if not (name.startswith("maze_") and name.endswith(".bin") and os.path.exists(path)):
+                self._json({"error": "no such recording"}, 404)
+                return
+            source = "board" if name.startswith("maze_board_") else "sim"
+            threading.Thread(target=maze_replay, args=(self.store, path, source), daemon=True).start()
+            self._json({"replaying": name, "source": source})
         elif self.path == "/api/delete":
             self.store.delete(body.get("id", ""))
             self._json({"ok": True})

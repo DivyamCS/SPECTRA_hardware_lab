@@ -63,6 +63,11 @@ DMEM is 128 KB (0x1000_0000-0x1001_FFFF). Any other data address sets the decode
 | 0x40 | SEG7_DP | W | Decimal points, bit n = digit n (digit 0 = rightmost) |
 | 0x44 | TIMER | R | Clock cycles since reset, free-running: never frozen, wraps at 2^32 (the time base after the run) |
 | 0x48 | SEG7_TXT | W | Letters on the 7-segment display: nibble n = digit n; 0 = the SEG7 digit, 1-15 = a letter instead (table below) |
+| 0x90 | MAZEFRAME | W | Maze mode: the frame's cycle count; the streamer sends a MAZEFRAME packet of COLUMNS (section 11) |
+| 0x94 | MAZEMAP | W | Maze mode: the streamer sends a MAZEMAP packet of MAZE_MAP (section 11) |
+| 0xA0 | MAZE_SAVE_X | R/W | Maze mode: a pose kept across BTNC (not reset; section 11); the game firmware does not use it (BTNC = a new game) |
+| 0xA4 | MAZE_SAVE_Y | R/W | Maze mode: as MAZE_SAVE_X |
+| 0xA8 | MAZE_SAVE_A | R/W | Maze mode: angle in bits 15:0, 0x4D5A in bits 31:16 = a saved pose |
 | 0x50 + 0x20*k | counters, core k | R | +0x00 INSTRET, +0x04 D_HIT, +0x08 D_MISS, +0x0C I_HIT, +0x10 I_MISS, +0x14 ARB_WAIT, +0x18 BAR_WAIT |
 
 Counters count only between RUN_START and RUN_STOP. D_HIT/D_MISS count cacheable data
@@ -92,6 +97,7 @@ not change the blanking (so "dn0." followed by 368 shows "dn0.  368"):
 | SW9 | - | reserved (ignored); the D-cache is always write-back / write-allocate |
 | SW13:10 | - | reserved (ignored); all four D-cache ways are always used |
 | SW15:14 | DISPLAY | 7-segment counter after the run (read live) |
+| SW15 | MAZE | 1 at reset = maze mode (section 11); SW14 at reset in maze mode = the scripted path; SW5 at reset in maze mode = detail mode (1 core draws 80 columns); SW14 + SW6 at reset = race mode (the autopilot races to the second orb, a fixed step per frame) |
 
 Buttons: BTNC = reset. After a run (the program runs once; the display only shows the counters
 it left):
@@ -199,7 +205,7 @@ CYCLES only after RUN_STOP and CHECKSUM, then computes with it, so what follows 
   finish(): CHECKSUM, LED0/LED1, SEG7 = cycles / 1000, then the display browser.
 * Golden checksums come from `tools/golden.py` (written to `fw/golden.h` by `fw/build.py`).
 
-## 10. Automation hooks (JTAG, used only by scripts)
+## 10. JTAG test hooks (used only by scripts)
 
 So that board regressions run without anyone touching the board, the top level contains one
 Vivado VIO core (Virtual Input/Output, driven over the same USB cable through the hardware
@@ -214,8 +220,34 @@ manager). With `ovr_en` = 0 (the reset value) the board behaves exactly as descr
 | seg7_val | in | 32 | value last written to SEG7 |
 | seg7_dp | in | 8 | value last written to SEG7_DP |
 | uart_busy | in | 1 | streamer still sending |
+| seg7_txt | in | 32 | value last written to SEG7_TXT (the display's letters) |
 
 `scripts/board.tcl` (written) offers: set switches, pulse reset, press a button,
 read LEDs and SEG7. `scripts/board_regress.py` uses it with the UART capture to run any list of
 configurations unattended. The VIO costs a few hundred LUTs and no BRAM; the final demo build may
 keep it (ovr_en = 0) or drop it by parameter.
+
+## 11. Reserved: maze mode (docs/spec/raycaster_demo.md)
+
+MAZEFRAME, MAZEMAP, the COLUMNS / MAZE_MAP shadows and packet types 6 / 7 are built in the
+result_streamer: two COLUMNS banks swap at MAZEFRAME, so the frame being sent cannot tear; a MAZEFRAME while the previous one is still being sent is skipped. Nothing else may
+use these addresses, offsets, packet types or the switch meaning; `tools/check_maps.py` checks it.
+
+| Kind | Reservation | Use |
+| --- | --- | --- |
+| DMEM | 0x1000_A000-0x1000_A3FF | MAZE_MAP: 24 x 24 cells, 1 byte each (0 = free, 1 = wall, 0x10 + i = orb i not yet picked up, 0x20 = the exit closed, 0x21 = open), snooped (MAZEMAP packet) |
+| DMEM | 0x1000_A400-0x1000_A4FF | spare (was MAZE_STATE: a reset clears the D-cache, so with write-back a pose kept here was lost in a dirty line, as found on the board) |
+| DMEM | 0x1000_A800-0x1000_A9FF | COLUMNS: 160 x (height u8, attr u8), snooped (MAZEFRAME packet) |
+| DMEM | 0x1000_B000-0x1000_BFFF | SIN table: 1024 x Q16.16 (cos = entry + 256) |
+| MMIO | 0x90 | MAZEFRAME (W): the frame's cycle count; the streamer sends a MAZEFRAME packet |
+| MMIO | 0x94 | MAZEMAP (W): the streamer sends a MAZEMAP packet (at the maze start and at every orb pickup) |
+| MMIO | 0x98 | ACCEL (R, optional, not built): ADXL362 tilt X / Y |
+| MMIO | 0x9C | spare (maze) |
+| MMIO | 0xA0-0xA8 | MAZE_SAVE_X / Y / A: the pose kept across BTNC; never reset (bypasses the cache) |
+| MMIO | 0xAC | spare (maze) |
+| Packet | type 6 | MAZEFRAME: seq u8, n_cols u8, cycles u32, x u16, y u16, angle u16 (pose, Q8.8 cells and 0..65535), then n_cols x (height u8, attr u8) (n_cols = 160, or 80 in detail mode with 1 core; the packet always carries 320 column bytes); attr bit 0 = N/S side, bit 1 = core id, bits 7:2 = light level 0..63 (the lantern and the beacon, soft shadows; tools/raycast.py) |
+| Packet | type 7 | MAZEMAP: width u8, height u8, then width x height cells (MAZE_MAP's values) |
+| Packet | STATS | Live game (SW14 down): sent when the player reaches the exit with every orb; checksum = the game time in ms since BTNC |
+| Switch | SW15 at reset | 1 = maze mode (benchmark programs otherwise; SW15 still selects the display after a run) |
+| Switch | SW2 in maze mode | read live every frame: 1 = core 1 draws every second column, 0 = core 1 waits |
+

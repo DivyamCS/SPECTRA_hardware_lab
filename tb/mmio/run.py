@@ -19,7 +19,8 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(os.path.dirname(HERE))
 CODES = {"CORE_ID": 1, "NCORES": 2, "CONFIG": 3, "BARRIER": 4, "LOCK": 5, "RUN_START": 6, "RUN_STOP": 7,
          "GEN_DONE": 8, "CHECKSUM": 9, "LEDS": 10, "SEG7": 11, "ROW_DONE": 12, "MROW_DONE": 13,
-         "CYCLES": 14, "SWITCHES": 15, "BUTTONS": 16, "SEG7_DP": 17, "TIMER": 19, "SEG7_TXT": 20}
+         "CYCLES": 14, "SWITCHES": 15, "BUTTONS": 16, "SEG7_DP": 17, "TIMER": 19, "SEG7_TXT": 20, "MAZEFRAME": 21, "MAZEMAP": 22,
+         "MAZE_SAVE_X": 23, "MAZE_SAVE_Y": 23, "MAZE_SAVE_A": 23}
 COUNTERS = ["INSTRET", "D_HIT", "D_MISS", "I_HIT", "I_MISS", "ARB_WAIT", "BAR_WAIT"]
 
 
@@ -44,7 +45,7 @@ def main():
     for k in range(2):
         for j, n in enumerate(COUNTERS):
             lines.append("%02x 12 1 %x %x" % (0x50 + 0x20 * k + cnt[n], k, j))   # code 0x12 = 18
-    if len(rows) != len(CODES):
+    if len(rows) != len(CODES):                          # (CODES maps names; three share code 23)
         sys.exit("FAIL mmio: expected %d registers in PROTOCOL.md, found %d" % (len(CODES), len(rows)))
     out = os.path.join(commit_dir(), "mmio")
     vec = os.path.join(out, "vec")

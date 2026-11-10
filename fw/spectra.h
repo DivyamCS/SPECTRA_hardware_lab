@@ -39,6 +39,11 @@
 #define BUTTONS     MMIO(0x3C)   /* R : bit0 BTNL, bit1 BTNR, bit2 BTNU, bit3 BTND (debounced) */
 #define SEG7_DP     MMIO(0x40)   /* W : decimal-point mask, bit n = digit n (digit 0 = rightmost) */
 #define TIMER       MMIO(0x44)   /* R : clock cycles since reset, free-running (never frozen) */
+#define MAZEFRAME   MMIO(0x90)   /* W : maze mode: this frame's cycles -> MAZEFRAME packet */
+#define MAZEMAP     MMIO(0x94)   /* W : maze mode: MAZEMAP packet of the map */
+#define MAZE_SAVE_X MMIO(0xA0)   /* R/W: maze mode: the pose kept across BTNC (not reset) */
+#define MAZE_SAVE_Y MMIO(0xA4)
+#define MAZE_SAVE_A MMIO(0xA8)   /*      angle in bits 15:0, 0x4D5A ("MZ") in 31:16 = valid */
 #define SEG7_TXT    MMIO(0x48)   /* W : letters, nibble n = digit n (0 = the SEG7 digit; codes below) */
 
 /* per-core counters: core k at 0x50 + 0x20*k */
@@ -63,6 +68,7 @@
 #define CFG_LAT(c)      (((c) >> 3) & 3u)    /* 0..3 -> L = 5, 6, 8, 10 cycles */
 #define CFG_PROGRAM(c)  (((c) >> 5) & 3u)    /* 0 GoL, 1 Mandelbrot halves, 2 Mandelbrot interleaved, 3 MatMul */
 #define CFG_IC(c)       (((c) >> 7) & 1u)
+#define CFG_MAZE(c)     (((c) >> 15) & 1u)    /* 1 at reset = maze mode (PROTOCOL.md section 11) */
 #define CFG_DISPLAY(c)  (((c) >> 14) & 3u)   /* 7-segment counter select (read live from SWITCHES) */
 
 #define PROG_GOL     0u

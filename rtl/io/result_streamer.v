@@ -39,6 +39,13 @@ module result_streamer (
     input  wire [479:0] snap,
 
     //-------------------------------------------------------------------------
+    // Maze Mode (PROTOCOL.md section 11): MAZEFRAME / MAZEMAP writes
+    //-------------------------------------------------------------------------
+    input  wire        ev_maze_frame,
+    input  wire        ev_maze_map,
+    input  wire [31:0] maze_cycles,
+
+    //-------------------------------------------------------------------------
     // uart_top
     //-------------------------------------------------------------------------
     output reg         wr,
@@ -90,16 +97,20 @@ module result_streamer (
     //-------------------------------------------------------------------------
     // Packet Engine State
     //-------------------------------------------------------------------------
-    reg  [2:0]  ptype;             // 1 BEGIN, 2 FRAME, 3 ROW, 4 MROW, 5 STATS
+    reg  [2:0]  ptype;             // 1 BEGIN, 2 FRAME, 3 ROW, 4 MROW, 5 STATS, 6 MAZEFRAME, 7 MAZEMAP
     reg  [9:0]  plen, pidx;        // payload length; byte index 0 .. plen + 4
     reg  [48:0] cur;               // sending: [48] MROW, [47] core, [46:32] row, [31:0] cycle
-    
+
     wire [9:0]  k       = pidx - 10'd4;                      // payload byte index
     wire [15:0] cur_row = {1'b0, cur[46:32]};
     wire [31:0] cur_cyc = cur[31:0];
     wire [17:0] row18   = {3'd0, cur_row[14:0]};
-    wire [17:0] i_byte  = (row18 << 7) + (row18 << 6) + {8'd0, k} - 18'd7; 
-    wire [9:0]  c_idx   = {cur_row[4:0], 5'd0} + (k - 10'd6); 
+    wire [17:0] i_byte  = (row18 << 7) + (row18 << 6) + {8'd0, k} - 18'd7;
+    wire [9:0]  c_idx   = {cur_row[4:0], 5'd0} + (k - 10'd6);
+    // MAZEFRAME byte k -> COLUMNS byte: seq 0, n_cols 1, (cycles 2-5 from mz_cyc), pose 4-9 at
+    // k 6-11, columns 16.. at k 12..; MAZEMAP byte k >= 2 -> map byte k - 2
+    wire [9:0]  mzf_b   = (k < 10'd2) ? k : (k < 10'd12) ? k - 10'd2 : k + 10'd4;
+    wire [9:0]  mzm_b   = k - 10'd2;
 
     //-------------------------------------------------------------------------
     // IMAGE Shadow (bytes)
@@ -135,6 +146,33 @@ module result_streamer (
     
     always @(posedge clk) if (is_c) cmem[a[11:2]] <= heat;
     always @(posedge clk) c_q <= cmem[c_idx];
+    // the maze shadow's read port (declared below with the RAM): the byte of the packet being sent
+
+    // ------------------------------------------------------------ maze shadows (one 512 x 32 RAM)
+    // words 0..143: MAZE_MAP (0x1000_A000, 576 bytes); words 256..511: two banks of COLUMNS
+    // (0x1000_A800, 336 bytes: header 16 + 160 x 2). Snooped stores go to the live bank; MAZEFRAME
+    // swaps the banks, so the frame being sent is frozen while the cores already write the next
+    // one (every frame rewrites all the bytes a packet uses). A MAZEFRAME while the previous one is
+    // still on its way (queued, sending, or the UART still busy) is skipped, as rv32sim does.
+    wire        is_mmap = st && (a[31:10] == 22'h040028) && (a[9:0] < 10'd576);   // 0x1000_A000..A23F
+    wire        is_mcol = st && (a[31:9] == 23'h080054) && (a[8:0] < 9'd336);    // 0x1000_A800..A94F
+    reg         mz_wbank, mz_queued, mz_sending, mz_drain, mz_map_pend;
+    reg  [31:0] mz_cyc;
+    wire        mz_busy = mz_queued || mz_sending || mz_drain;
+    wire        take_maze = ev_maze_frame && !mz_busy;
+    reg  [31:0] mz_q;
+    (* ram_style = "block" *) reg [31:0] mzmem [0:511];
+    integer zm;
+    initial for (zm = 0; zm < 512; zm = zm + 1) mzmem[zm] = 32'd0;
+    wire [8:0]  mz_widx = is_mmap ? {1'b0, a[9:2]} : {1'b1, mz_wbank, a[8:2]};
+    always @(posedge clk) begin
+        if (is_mmap || is_mcol) begin
+            if (snoop_be[0]) mzmem[mz_widx][7:0]   <= snoop_wdata[7:0];
+            if (snoop_be[1]) mzmem[mz_widx][15:8]  <= snoop_wdata[15:8];
+            if (snoop_be[2]) mzmem[mz_widx][23:16] <= snoop_wdata[23:16];
+            if (snoop_be[3]) mzmem[mz_widx][31:24] <= snoop_wdata[31:24];
+        end
+    end
 
     //-------------------------------------------------------------------------
     // Row FIFO {mrow, core, row, cycle}
@@ -192,12 +230,17 @@ module result_streamer (
                   else if (k == 1) pay = cur_row[7:0];
                   else if (k < 6)  pay = cur_cyc[8*(k-2) +: 8];
                   else             pay = c_q;
-            default: if (k < 2)    pay = cfg[8*k +: 8];                      // STATS
+            3'd5: if (k < 2)       pay = cfg[8*k +: 8];                      // STATS
                   else if (k == 2) pay = {6'd0, ncores};
                   else if (k == 3) pay = prog;
                   else if (k < 8)  pay = stats_cyc[8*(k-4) +: 8];
                   else if (k < 12) pay = stats_sum[8*(k-8) +: 8];
                   else             pay = stats_cnt[8*(k-12) +: 8];
+            3'd6: if (k < 2)       pay = mz_q[8*mzf_b[1:0] +: 8];           // MAZEFRAME
+                  else if (k < 6)  pay = mz_cyc[8*(k-2) +: 8];
+                  else             pay = mz_q[8*mzf_b[1:0] +: 8];
+            3'd7: if (k < 2)       pay = 8'd24;                              // MAZEMAP 24 x 24
+                  else             pay = mz_q[8*mzm_b[1:0] +: 8];
         endcase
 
         if (pidx == 10'd0)                 b = 8'hA5;
@@ -208,8 +251,11 @@ module result_streamer (
         else                               b = pay;
     end
 
-    wire deq = (ps == P_IDLE) && !begin_pend && !frame_queued && (rq_n != 9'd0);
-    assign uart_busy = (ps != P_IDLE) || begin_pend || stats_pend || frame_busy || (rq_n != 9'd0) || tx_busy;
+    wire deq = (ps == P_IDLE) && !begin_pend && !frame_queued && !mz_map_pend && !mz_queued && (rq_n != 9'd0);
+    assign uart_busy = (ps != P_IDLE) || begin_pend || stats_pend || frame_busy || mz_busy || mz_map_pend ||
+                       (rq_n != 9'd0) || tx_busy;
+    // maze shadow read: the bank not being written (the frozen frame), or the map
+    always @(posedge clk) mz_q <= mzmem[(ptype == 3'd7) ? {1'b0, mzm_b[9:2]} : {1'b1, ~mz_wbank, mzf_b[8:2]}];
 
     always @(posedge clk) begin
         wr <= 1'b0;
@@ -217,6 +263,7 @@ module result_streamer (
             copying <= 1'b0; frame_queued <= 1'b0; frame_sending <= 1'b0; frame_drain <= 1'b0;
             rq_n <= 9'd0; rq_w <= 8'd0; rq_r <= 8'd0;
             begin_pend <= 1'b0; stats_pend <= 1'b0; ps <= P_IDLE;
+            mz_wbank <= 1'b0; mz_queued <= 1'b0; mz_sending <= 1'b0; mz_drain <= 1'b0; mz_map_pend <= 1'b0;
             ptype <= 3'd1; plen <= 10'd4; pidx <= 10'd0; crc <= 8'd0; cur <= 49'd0;
         end else begin
             // ---- events
@@ -237,7 +284,11 @@ module result_streamer (
             end
             
             if (frame_drain && !tx_busy) frame_drain <= 1'b0;
-            
+            if (take_maze) begin
+                mz_wbank <= ~mz_wbank; mz_queued <= 1'b1; mz_cyc <= maze_cycles;
+            end
+            if (ev_maze_map) mz_map_pend <= 1'b1;
+            if (mz_drain && !tx_busy) mz_drain <= 1'b0;
             if (row_ev && rq_n != 9'd256) begin
                 rq[rq_w] <= {ev_mrow_done, ev_owner, row_mod[14:0], cycles};
                 rq_w <= rq_w + 8'd1;
@@ -258,14 +309,18 @@ module result_streamer (
                     pidx <= 10'd0; crc <= 8'd0;
                     if (begin_pend) begin
                         begin_pend <= 1'b0; ptype <= 3'd1; plen <= 10'd4; ps <= P_ADDR;
+                    end else if (mz_map_pend) begin
+                        mz_map_pend <= 1'b0; ptype <= 3'd7; plen <= 10'd578; ps <= P_ADDR;
                     end else if (frame_queued) begin
                         frame_queued <= 1'b0; frame_sending <= 1'b1; ptype <= 3'd2; plen <= 10'd518; ps <= P_ADDR;
+                    end else if (mz_queued) begin
+                        mz_queued <= 1'b0; mz_sending <= 1'b1; ptype <= 3'd6; plen <= 10'd332; ps <= P_ADDR;
                     end else if (deq) begin
                         cur <= rq[rq_r]; rq_r <= rq_r + 8'd1;
                         ptype <= rq[rq_r][48] ? 3'd4 : 3'd3; 
                         plen  <= rq[rq_r][48] ? 10'd38 : 10'd199;
                         ps <= P_ADDR;
-                    end else if (stats_pend && !frame_busy) begin
+                    end else if (stats_pend && !frame_busy && !mz_busy) begin
                         stats_pend <= 1'b0; ptype <= 3'd5; plen <= 10'd68; ps <= P_ADDR;
                     end
                 end
@@ -279,8 +334,11 @@ module result_streamer (
                         
                     if (pidx == plen + 10'd4) begin
                         ps <= P_IDLE;
-                        if (ptype == 3'd2) begin 
-                            frame_sending <= 1'b0; frame_drain <= 1'b1; 
+                        if (ptype == 3'd2) begin
+                            frame_sending <= 1'b0; frame_drain <= 1'b1;
+                        end
+                        if (ptype == 3'd6) begin
+                            mz_sending <= 1'b0; mz_drain <= 1'b1;
                         end
                     end else begin
                         pidx <= pidx + 10'd1; ps <= P_ADDR;

@@ -20,7 +20,7 @@ module tb_mmio_bus;
     reg  [31:0] wdata = 0;
     wire [31:0] rdata, rd_data, st_data;
     wire        ready, lock_rd, lock_wr0, lock_rdata, run_start, run_stop;
-    wire        st_gen_done, st_checksum, st_row_done, st_mrow_done, st_owner;
+    wire        st_gen_done, st_checksum, st_row_done, st_mrow_done, st_owner, st_maze_frame, st_maze_map;
     wire [3:0]  rd_sel;
     wire [15:0] leds;
     wire [26:0] seg7_val;
@@ -37,7 +37,8 @@ module tb_mmio_bus;
         .run_start(run_start), .run_stop(run_stop), .rd_sel(rd_sel), .rd_data(rd_data),
         .leds(leds), .seg7_val(seg7_val), .seg7_dp(seg7_dp), .seg7_txt(seg7_txt),
         .st_gen_done(st_gen_done), .st_checksum(st_checksum), .st_row_done(st_row_done),
-        .st_mrow_done(st_mrow_done), .st_data(st_data), .st_owner(st_owner));
+        .st_mrow_done(st_mrow_done), .st_maze_frame(st_maze_frame), .st_maze_map(st_maze_map),
+        .st_data(st_data), .st_owner(st_owner));
     lock_barrier u_lb (.clk(clk), .rst(rst), .ncores(ncores), .lock_rd(lock_rd), .lock_wr0(lock_wr0),
         .owner(owner), .lock_rdata(lock_rdata), .bar_req(2'b00), .bar_release(),
         .ev_barwait0(), .ev_barwait1());
@@ -58,17 +59,19 @@ module tb_mmio_bus;
     endtask
 
     // pulses seen during the last access
-    integer n_gen, n_chk, n_row, n_mrow, n_start, n_stop;
+    integer n_gen, n_chk, n_row, n_mrow, n_start, n_stop, n_mzf, n_mzm;
     reg [31:0] p_data; reg p_owner;
     always @(posedge clk) begin
         if (st_gen_done)  begin n_gen  = n_gen + 1;  p_data = st_data; p_owner = st_owner; end
         if (st_checksum)  begin n_chk  = n_chk + 1;  p_data = st_data; p_owner = st_owner; end
         if (st_row_done)  begin n_row  = n_row + 1;  p_data = st_data; p_owner = st_owner; end
         if (st_mrow_done) begin n_mrow = n_mrow + 1; p_data = st_data; p_owner = st_owner; end
+        if (st_maze_frame) begin n_mzf = n_mzf + 1; p_data = st_data; p_owner = st_owner; end
+        if (st_maze_map)  begin n_mzm = n_mzm + 1;  p_data = st_data; p_owner = st_owner; end
         if (run_start) n_start = n_start + 1;
         if (run_stop)  n_stop = n_stop + 1;
     end
-    task clear_pulses; begin n_gen = 0; n_chk = 0; n_row = 0; n_mrow = 0; n_start = 0; n_stop = 0; end endtask
+    task clear_pulses; begin n_gen = 0; n_chk = 0; n_row = 0; n_mrow = 0; n_start = 0; n_stop = 0; n_mzf = 0; n_mzm = 0; end endtask
 
     // one access, one cycle of sel; returns read data
     reg [31:0] got;
@@ -88,7 +91,7 @@ module tb_mmio_bus;
         begin
             checks = checks + 2;
             if (leds !== l || seg7_val !== s || seg7_dp !== d) fail("an output changed", {leds, seg7_dp}, {l, d});
-            if (n_gen + n_chk + n_row + n_mrow + n_start + n_stop != 0) fail("a pulse fired", 1, 0);
+            if (n_gen + n_chk + n_row + n_mrow + n_start + n_stop + n_mzf + n_mzm != 0) fail("a pulse fired", 1, 0);
         end
     endtask
 
@@ -148,17 +151,23 @@ module tb_mmio_bus;
                 6:  begin acc(1, mo[i], 0, 0); checks = checks + 1; if (n_start != 1) fail("RUN_START pulse", n_start, 1);
                           acc(1, 8'h18, 0, 0); end           // stop again so the counters stay
                 7:  begin acc(1, mo[i], 0, 0); checks = checks + 1; if (n_stop != 1) fail("RUN_STOP pulse", n_stop, 1); end
-                8, 9, 12, 13: begin
+                8, 9, 12, 13, 21, 22: begin
                         acc(1, mo[i], 32'hC0DE0000 + mo[i], 1);
                         checks = checks + 3;
-                        if ((mc[i] == 8 ? n_gen : mc[i] == 9 ? n_chk : mc[i] == 12 ? n_row : n_mrow) != 1) fail("event pulse", 0, 1);
-                        if (n_gen + n_chk + n_row + n_mrow != 1) fail("only that pulse", n_gen + n_chk + n_row + n_mrow, 1);
+                        if ((mc[i] == 8 ? n_gen : mc[i] == 9 ? n_chk : mc[i] == 12 ? n_row : mc[i] == 13 ? n_mrow :
+                             mc[i] == 21 ? n_mzf : n_mzm) != 1) fail("event pulse", 0, 1);
+                        if (n_gen + n_chk + n_row + n_mrow + n_mzf + n_mzm != 1)
+                            fail("only that pulse", n_gen + n_chk + n_row + n_mrow + n_mzf + n_mzm, 1);
                         if (p_data !== 32'hC0DE0000 + mo[i] || p_owner !== 1'b1) fail("pulse data / owner", p_data, 32'hC0DE0000 + mo[i]);
                     end
                 10: begin acc(1, mo[i], 32'h0001A5C3, 0); checks = checks + 1; if (leds !== 16'hA5C3) fail("LEDS", leds, 16'hA5C3); end
                 11: begin acc(1, mo[i], 32'h05F5E0FF, 0); checks = checks + 1; if (seg7_val !== 27'd99999999) fail("SEG7", seg7_val, 99999999); end
                 17: begin acc(1, mo[i], 32'h00000084, 0); checks = checks + 1; if (seg7_dp !== 8'h84) fail("SEG7_DP", seg7_dp, 8'h84); end
                 20: begin acc(1, mo[i], 32'h17300000, 0); checks = checks + 1; if (seg7_txt !== 32'h17300000) fail("SEG7_TXT", seg7_txt, 32'h17300000); end
+                23: begin                              // MAZE_SAVE_*: read back what was written
+                        acc(1, mo[i], 32'h4D5A0000 + mo[i], 1);
+                        rd_expect(mo[i], 0, 32'h4D5A0000 + mo[i], "MAZE_SAVE read back");
+                    end
                 14: rd_expect(mo[i], 0, u_pc.cnt[0], "CYCLES");
                 15: rd_expect(mo[i], 0, sw_live, "SWITCHES");
                 16: rd_expect(mo[i], 0, 32'h0000000A, "BUTTONS (debounced)");
@@ -193,7 +202,11 @@ module tb_mmio_bus;
             checks = checks + 1;
             if (u_lb.lock !== 1'b0) fail("unmapped write touched LOCK", u_lb.lock, 0);
         end
-        if (errors == 0 && regs == nm && nm == 33)          // 19 registers + 14 counters (PROTOCOL.md)
+        // MAZE_SAVE_* keep their values through a reset (BTNC keeps the maze pose)
+        @(negedge clk); rst = 1; repeat (3) @(negedge clk); rst = 0;
+        rd_expect(8'hA0, 0, 32'h4D5A00A0, "MAZE_SAVE_X after reset");
+        rd_expect(8'hA8, 0, 32'h4D5A00A8, "MAZE_SAVE_A after reset");
+        if (errors == 0 && regs == nm && nm == 38)          // 24 registers + 14 counters (PROTOCOL.md)
             $display("PASS mmio_bus (%0d checks: %0d map entries from PROTOCOL.md, both directions, every unmapped offset)", checks, nm);
         else
             $display("FAIL mmio_bus: %0d errors in %0d checks, %0d map entries", errors, checks, nm);

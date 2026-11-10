@@ -1,7 +1,8 @@
 # fpga_budget.txt - resource limits of the full FPGA build, checked by scripts/fpga_build.py.
 # key  kind  limit
-# Limits = the release build (build/releases/fpga-v2/summary.txt); a build that needs more must
+# Limits = the release build (build/releases/fpga-v2/summary.txt: LUT 9982, BRAM 53) plus maze mode
+# (MAZEFRAME / MAZEMAP buffers and registers: +232 LUT, +0.5 BRAM); a build that needs more must
 # change this file on purpose.
-LUT   max    9982
-BRAM  max    53
+LUT   max    10214
+BRAM  max    53.5
 DSP   exact  8
